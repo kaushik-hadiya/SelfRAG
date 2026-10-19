@@ -1,0 +1,221 @@
+employee_id,name,email,department,title,level,location,date_of_joining,slack_handle,work_mode
+ORB01001,Siddharth Sharma,siddharth.sharma@orbitra.io,Legal,Paralegal,L2,Hyderabad,2018-12-02,@siddharth.sharma,Hybrid
+ORB01002,Imran Iyer,imran.iyer@orbitra.io,Security,GRC Analyst,L2,Bengaluru,2016-10-01,@imran.iyer,Hybrid
+ORB01003,Lakshmi Das,lakshmi.das@orbitra.io,Engineering,QA Engineer,L2,Bengaluru,2024-06-11,@lakshmi.das,Hybrid
+ORB01004,Divya Rao,divya.rao@orbitra.io,People Operations,Recruiter,L2,Pune,2024-12-04,@divya.rao,Hybrid
+ORB01005,Ava Davis,ava.davis@orbitra.io,Sales,Sales Development Rep,L2,Austin,2024-12-23,@ava.davis,Hybrid
+ORB01006,Neha Reddy,neha.reddy@orbitra.io,Marketing,Content Strategist,L4,Bengaluru,2019-05-20,@neha.reddy,Hybrid
+ORB01007,Liam Anderson,liam.anderson@orbitra.io,Data & AI,Analytics Engineer,L2,Austin,2022-08-10,@liam.anderson,Hybrid
+ORB01008,Priyanka Kumar,priyanka.kumar@orbitra.io,Marketing,Demand Gen Specialist,L2,Hyderabad,2024-04-25,@priyanka.kumar,Hybrid
+ORB01009,Meera Fernandes,meera.fernandes@orbitra.io,Sales,Account Executive,L2,Hyderabad,2026-02-18,@meera.fernandes,Hybrid
+ORB01010,Manoj Agarwal,manoj.agarwal@orbitra.io,Marketing,Marketing Manager,L3,Bengaluru,2020-05-26,@manoj.agarwal,Hybrid
+ORB01011,Rohan Das,rohan.das@orbitra.io,Admin & Workplace,Facilities Executive,L4,Bengaluru,2024-08-04,@rohan.das,Hybrid
+ORB01012,Neha Kulkarni,neha.kulkarni@orbitra.io,Admin & Workplace,Facilities Executive,L4,Pune,2020-01-20,@neha.kulkarni,Hybrid
+ORB01013,Oliver Walker,oliver.walker@orbitra.io,Engineering,Staff Engineer,L5,London,2020-11-30,@oliver.walker,Hybrid
+ORB01014,Joseph Kumar,joseph.kumar@orbitra.io,Legal,Paralegal,L2,Bengaluru,2023-10-07,@joseph.kumar,Hybrid
+ORB01015,Manoj Nair,manoj.nair@orbitra.io,Sales,Sales Development Rep,L2,Hyderabad,2024-10-08,@manoj.nair,Hybrid
+ORB01016,Maria Mehta,maria.mehta@orbitra.io,Security,GRC Analyst,L3,Bengaluru,2018-11-16,@maria.mehta,Hybrid
+ORB01017,Lakshmi Bose,lakshmi.bose@orbitra.io,Data & AI,Data Scientist,L2,Bengaluru,2018-02-17,@lakshmi.bose,Hybrid
+ORB01018,Ava Taylor,ava.taylor@orbitra.io,Data & AI,Analytics Engineer,L3,Austin,2023-02-05,@ava.taylor,Hybrid
+ORB01019,Pooja Khan,pooja.khan@orbitra.io,Engineering,SRE,L4,Pune,2017-09-13,@pooja.khan,Hybrid
+ORB01020,Riya Fernandes,riya.fernandes@orbitra.io,Admin & Workplace,Transport Coordinator,L2,Pune,2019-09-16,@riya.fernandes,Hybrid
+ORB01021,Aarav Banerjee,aarav.banerjee@orbitra.io,Legal,Paralegal,L4,Pune,2024-12-16,@aarav.banerjee,Hybrid
+ORB01022,Tanvi Shetty,tanvi.shetty@orbitra.io,Admin & Workplace,Facilities Executive,L2,Bengaluru,2020-08-10,@tanvi.shetty,Hybrid
+ORB01023,Farah Thomas,farah.thomas@orbitra.io,Engineering,QA Engineer,L3,Pune,2021-11-23,@farah.thomas,Remote
+ORB01024,Tanvi Rao,tanvi.rao@orbitra.io,Engineering,Senior Software Engineer,L5,Bengaluru,2026-04-06,@tanvi.rao,Hybrid
+ORB01025,Kabir Banerjee,kabir.banerjee@orbitra.io,People Operations,HR Executive,L4,Bengaluru,2025-01-01,@kabir.banerjee,Hybrid
+ORB01026,Deepak Khan,deepak.khan@orbitra.io,Product,Product Designer,L4,Hyderabad,2026-03-14,@deepak.khan,Hybrid
+ORB01027,Imran Fernandes,imran.fernandes@orbitra.io,Legal,Legal Counsel,L4,Bengaluru,2019-11-29,@imran.fernandes,Hybrid
+ORB01028,Mason Wilson,mason.wilson@orbitra.io,IT,Systems Administrator,L2,Austin,2019-03-13,@mason.wilson,Hybrid
+ORB01029,Vivaan Singh,vivaan.singh@orbitra.io,IT,IT Support Engineer,L4,Bengaluru,2018-11-20,@vivaan.singh,Remote
+ORB01030,Emily Garcia,emily.garcia@orbitra.io,Data & AI,Data Scientist,L3,Austin,2017-03-18,@emily.garcia,Hybrid
+ORB01031,Suresh Menon,suresh.menon@orbitra.io,IT,IT Support Engineer,L4,Bengaluru,2026-04-24,@suresh.menon,Hybrid
+ORB01032,Nisha Hegde,nisha.hegde@orbitra.io,People Operations,L&D Specialist,L2,Pune,2017-06-22,@nisha.hegde,Hybrid
+ORB01033,Harsh Mehta,harsh.mehta@orbitra.io,Finance,Payroll Specialist,L4,Pune,2017-01-08,@harsh.mehta,Hybrid
+ORB01034,Arnav Patel,arnav.patel@orbitra.io,Finance,AP Specialist,L2,Hyderabad,2019-03-16,@arnav.patel,Hybrid
+ORB01035,Gaurav Nair,gaurav.nair@orbitra.io,Finance,Financial Analyst,L3,Pune,2021-08-08,@gaurav.nair,Hybrid
+ORB01036,Gaurav Hegde,gaurav.hegde@orbitra.io,IT,IT Support Engineer,L2,Bengaluru,2023-09-24,@gaurav.hegde,Hybrid
+ORB01037,Kabir Thomas,kabir.thomas@orbitra.io,Customer Success,Customer Success Manager,L7,Bengaluru,2020-12-21,@kabir.thomas,Hybrid
+ORB01038,Shruti Kumar,shruti.kumar@orbitra.io,Engineering,Senior Software Engineer,L5,Bengaluru,2020-08-31,@shruti.kumar,Remote
+ORB01039,Pooja Thomas,pooja.thomas@orbitra.io,People Operations,Recruiter,L3,Bengaluru,2024-03-24,@pooja.thomas,Hybrid
+ORB01040,Suresh Nair,suresh.nair@orbitra.io,Customer Success,Technical Account Manager,L7,Pune,2018-11-09,@suresh.nair,Hybrid
+ORB01041,Imran Patel,imran.patel@orbitra.io,Legal,Paralegal,L2,Hyderabad,2016-12-23,@imran.patel,Hybrid
+ORB01042,Farah Gupta,farah.gupta@orbitra.io,Engineering,QA Engineer,L2,Pune,2025-12-18,@farah.gupta,Hybrid
+ORB01043,Rohan Malhotra,rohan.malhotra@orbitra.io,Customer Success,Support Lead,L5,Hyderabad,2017-10-05,@rohan.malhotra,Hybrid
+ORB01044,Nisha Singh,nisha.singh@orbitra.io,Security,Security Engineer,L4,Pune,2017-05-02,@nisha.singh,Hybrid
+ORB01045,Joseph Chatterjee,joseph.chatterjee@orbitra.io,Marketing,Content Strategist,L2,Hyderabad,2023-12-05,@joseph.chatterjee,Hybrid
+ORB01046,Pooja Verma,pooja.verma@orbitra.io,Product,Product Designer,L3,Bengaluru,2019-12-18,@pooja.verma,Hybrid
+ORB01047,Aarav Pillai,aarav.pillai@orbitra.io,Security,Security Engineer,L2,Bengaluru,2022-06-12,@aarav.pillai,Hybrid
+ORB01048,Karan Thomas,karan.thomas@orbitra.io,Marketing,Marketing Manager,L2,Bengaluru,2020-07-23,@karan.thomas,Hybrid
+ORB01049,Imran Kapoor,imran.kapoor@orbitra.io,Sales,Account Executive,L4,Pune,2025-07-30,@imran.kapoor,Hybrid
+ORB01050,Arnav Kumar,arnav.kumar@orbitra.io,Product,Product Designer,L2,Hyderabad,2026-05-24,@arnav.kumar,Hybrid
+ORB01051,Nikhil Kulkarni,nikhil.kulkarni@orbitra.io,Sales,Sales Development Rep,L4,Pune,2020-04-05,@nikhil.kulkarni,Hybrid
+ORB01052,Pooja Chatterjee,pooja.chatterjee@orbitra.io,People Operations,Recruiter,L2,Hyderabad,2017-06-14,@pooja.chatterjee,Hybrid
+ORB01053,Aditya Sharma,aditya.sharma@orbitra.io,Marketing,Marketing Manager,L4,Bengaluru,2019-05-09,@aditya.sharma,Hybrid
+ORB01054,Zoya Kapoor,zoya.kapoor@orbitra.io,Finance,Accountant,L2,Pune,2017-04-05,@zoya.kapoor,Hybrid
+ORB01055,Olivia Anderson,olivia.anderson@orbitra.io,Engineering,Staff Engineer,L5,Austin,2022-12-12,@olivia.anderson,Hybrid
+ORB01056,Karan Patel,karan.patel@orbitra.io,Sales,Solutions Engineer,L5,Pune,2026-07-01,@karan.patel,Hybrid
+ORB01057,Harsh Menon,harsh.menon@orbitra.io,Admin & Workplace,Facilities Executive,L4,Bengaluru,2017-07-27,@harsh.menon,Hybrid
+ORB01058,Divya Das,divya.das@orbitra.io,Legal,Legal Counsel,L2,Pune,2026-02-10,@divya.das,Hybrid
+ORB01059,Divya Sharma,divya.sharma@orbitra.io,Product,Product Designer,L3,Bengaluru,2025-05-30,@divya.sharma,Hybrid
+ORB01060,Isla Wright,isla.wright@orbitra.io,Product,Product Manager,L3,London,2026-03-13,@isla.wright,Remote
+ORB01061,Meera Menon,meera.menon@orbitra.io,People Operations,Recruiter,L3,Pune,2025-08-13,@meera.menon,Hybrid
+ORB01062,Meera Sharma,meera.sharma@orbitra.io,Admin & Workplace,Facilities Executive,L3,Bengaluru,2020-02-05,@meera.sharma,Hybrid
+ORB01063,Riya Shah,riya.shah@orbitra.io,Admin & Workplace,Transport Coordinator,L4,Bengaluru,2025-11-16,@riya.shah,Hybrid
+ORB01064,Siddharth Kumar,siddharth.kumar@orbitra.io,Sales,Sales Development Rep,L4,Bengaluru,2019-05-24,@siddharth.kumar,Remote
+ORB01065,Aishwarya Shah,aishwarya.shah@orbitra.io,Legal,Paralegal,L3,Hyderabad,2023-03-20,@aishwarya.shah,Hybrid
+ORB01066,Neha Kumar,neha.kumar@orbitra.io,Security,Security Engineer,L3,Bengaluru,2016-11-29,@neha.kumar,Hybrid
+ORB01067,Farah Thomas,farah.thomas2@orbitra.io,IT,IAM Engineer,L4,Bengaluru,2024-09-26,@farah.thomas2,Hybrid
+ORB01068,Yash Mehta,yash.mehta@orbitra.io,Data & AI,Data Engineer,L4,Bengaluru,2019-12-08,@yash.mehta,Hybrid
+ORB01069,Tanvi Chatterjee,tanvi.chatterjee@orbitra.io,Sales,Regional Sales Director,L8,Bengaluru,2020-01-28,@tanvi.chatterjee,Hybrid
+ORB01070,Zoya Nair,zoya.nair@orbitra.io,Customer Success,Support Lead,L5,Bengaluru,2023-11-15,@zoya.nair,Hybrid
+ORB01071,Olivia Taylor,olivia.taylor@orbitra.io,Security,GRC Analyst,L3,Austin,2022-07-24,@olivia.taylor,Hybrid
+ORB01072,Sneha Menon,sneha.menon@orbitra.io,Finance,AP Specialist,L3,Bengaluru,2021-05-15,@sneha.menon,Hybrid
+ORB01073,Lakshmi Bose,lakshmi.bose2@orbitra.io,Legal,Legal Counsel,L4,Bengaluru,2017-05-14,@lakshmi.bose2,Hybrid
+ORB01074,Priyanka Desai,priyanka.desai@orbitra.io,Data & AI,ML Engineer,L4,Hyderabad,2019-11-24,@priyanka.desai,Hybrid
+ORB01075,Nikhil Sharma,nikhil.sharma@orbitra.io,Engineering,Senior Software Engineer,L5,Bengaluru,2021-09-29,@nikhil.sharma,Hybrid
+ORB01076,Amelia Green,amelia.green@orbitra.io,Finance,Financial Analyst,L4,London,2024-03-23,@amelia.green,Hybrid
+ORB01077,Nisha Nair,nisha.nair@orbitra.io,Admin & Workplace,Facilities Executive,L2,Bengaluru,2025-02-22,@nisha.nair,Hybrid
+ORB01078,Farah Pillai,farah.pillai@orbitra.io,Engineering,QA Engineer,L2,Bengaluru,2025-12-05,@farah.pillai,Hybrid
+ORB01079,Manoj Malhotra,manoj.malhotra@orbitra.io,IT,IAM Engineer,L4,Bengaluru,2019-12-22,@manoj.malhotra,Hybrid
+ORB01080,Priyanka Shetty,priyanka.shetty@orbitra.io,Legal,Paralegal,L4,Pune,2021-06-01,@priyanka.shetty,Hybrid
+ORB01081,Grace Green,grace.green@orbitra.io,Sales,Sales Development Rep,L4,London,2019-07-11,@grace.green,Hybrid
+ORB01082,Suresh Agarwal,suresh.agarwal@orbitra.io,Customer Success,Technical Account Manager,L7,Pune,2021-05-07,@suresh.agarwal,Hybrid
+ORB01083,Nisha Kulkarni,nisha.kulkarni@orbitra.io,Marketing,Content Strategist,L4,Bengaluru,2017-04-27,@nisha.kulkarni,Hybrid
+ORB01084,Neha Kapoor,neha.kapoor@orbitra.io,Product,Senior Product Manager,L5,Bengaluru,2017-02-19,@neha.kapoor,Hybrid
+ORB01085,Imran Pillai,imran.pillai@orbitra.io,Finance,Accountant,L2,Bengaluru,2025-10-03,@imran.pillai,Hybrid
+ORB01086,Oliver Clarke,oliver.clarke@orbitra.io,People Operations,HR Executive,L3,London,2019-10-07,@oliver.clarke,Hybrid
+ORB01087,Imran Banerjee,imran.banerjee@orbitra.io,Legal,Legal Counsel,L3,Bengaluru,2018-11-16,@imran.banerjee,Hybrid
+ORB01088,Vivaan Verma,vivaan.verma@orbitra.io,Marketing,Demand Gen Specialist,L4,Pune,2025-05-14,@vivaan.verma,Hybrid
+ORB01089,Manoj Thomas,manoj.thomas@orbitra.io,Product,Product Manager,L3,Bengaluru,2023-01-20,@manoj.thomas,Hybrid
+ORB01090,Kabir Agarwal,kabir.agarwal@orbitra.io,Finance,Financial Analyst,L3,Bengaluru,2018-06-15,@kabir.agarwal,Remote
+ORB01091,Rahul Menon,rahul.menon@orbitra.io,People Operations,Recruiter,L3,Bengaluru,2024-12-13,@rahul.menon,Hybrid
+ORB01092,Divya Kulkarni,divya.kulkarni@orbitra.io,Data & AI,Analytics Engineer,L2,Bengaluru,2024-10-25,@divya.kulkarni,Hybrid
+ORB01093,Meera Agarwal,meera.agarwal@orbitra.io,Data & AI,Data Scientist,L2,Bengaluru,2019-03-10,@meera.agarwal,Hybrid
+ORB01094,Priyanka Nair,priyanka.nair@orbitra.io,Customer Success,Customer Success Manager,L7,Bengaluru,2021-09-22,@priyanka.nair,Hybrid
+ORB01095,Kavya Pillai,kavya.pillai@orbitra.io,Legal,Paralegal,L3,Pune,2018-04-19,@kavya.pillai,Hybrid
+ORB01096,Amelia Evans,amelia.evans@orbitra.io,Sales,Account Executive,L4,London,2016-09-14,@amelia.evans,Hybrid
+ORB01097,Neha Verma,neha.verma@orbitra.io,Legal,Legal Counsel,L2,Hyderabad,2023-01-21,@neha.verma,Hybrid
+ORB01098,Nisha Reddy,nisha.reddy@orbitra.io,Legal,Paralegal,L4,Hyderabad,2023-02-24,@nisha.reddy,Hybrid
+ORB01099,Aditya Shah,aditya.shah@orbitra.io,IT,Systems Administrator,L4,Pune,2020-07-27,@aditya.shah,Hybrid
+ORB01100,Varun Sharma,varun.sharma@orbitra.io,Finance,Payroll Specialist,L2,Hyderabad,2021-04-11,@varun.sharma,Hybrid
+ORB01101,Manoj Kapoor,manoj.kapoor@orbitra.io,Product,UX Researcher,L2,Hyderabad,2024-08-23,@manoj.kapoor,Hybrid
+ORB01102,Riya Das,riya.das@orbitra.io,IT,Systems Administrator,L3,Hyderabad,2021-04-20,@riya.das,Hybrid
+ORB01103,Riya Desai,riya.desai@orbitra.io,Customer Success,Support Engineer,L3,Hyderabad,2026-04-21,@riya.desai,Hybrid
+ORB01104,Grace Clarke,grace.clarke@orbitra.io,Marketing,Marketing Manager,L3,London,2025-12-16,@grace.clarke,Hybrid
+ORB01105,Kavya Shah,kavya.shah@orbitra.io,Sales,Solutions Engineer,L5,Pune,2019-07-21,@kavya.shah,Hybrid
+ORB01106,Sophia Anderson,sophia.anderson@orbitra.io,Engineering,QA Engineer,L2,Austin,2017-05-17,@sophia.anderson,Hybrid
+ORB01107,Suresh Khan,suresh.khan@orbitra.io,Customer Success,Support Lead,L5,Bengaluru,2023-08-29,@suresh.khan,Hybrid
+ORB01108,Vivaan Iyer,vivaan.iyer@orbitra.io,Sales,Sales Development Rep,L3,Pune,2024-03-04,@vivaan.iyer,Hybrid
+ORB01109,Maria Shah,maria.shah@orbitra.io,People Operations,Recruiter,L3,Hyderabad,2024-10-12,@maria.shah,Hybrid
+ORB01110,Manoj Kulkarni,manoj.kulkarni@orbitra.io,Sales,Solutions Engineer,L5,Bengaluru,2019-01-01,@manoj.kulkarni,Hybrid
+ORB01111,Rahul Reddy,rahul.reddy@orbitra.io,Legal,Legal Counsel,L2,Bengaluru,2018-11-04,@rahul.reddy,Hybrid
+ORB01112,Maria Fernandes,maria.fernandes@orbitra.io,IT,IAM Engineer,L3,Bengaluru,2017-07-17,@maria.fernandes,Hybrid
+ORB01113,Meera Shah,meera.shah@orbitra.io,Product,Product Designer,L2,Bengaluru,2024-05-10,@meera.shah,Hybrid
+ORB01114,Aditya Patel,aditya.patel@orbitra.io,IT,Systems Administrator,L4,Bengaluru,2017-10-31,@aditya.patel,Hybrid
+ORB01115,Grace Jones,grace.jones@orbitra.io,Engineering,QA Engineer,L3,London,2021-09-05,@grace.jones,Hybrid
+ORB01116,Diya Patel,diya.patel@orbitra.io,Sales,Regional Sales Director,L8,Bengaluru,2017-09-11,@diya.patel,Hybrid
+ORB01117,Suresh Iyer,suresh.iyer@orbitra.io,Security,Security Engineer,L2,Bengaluru,2018-02-02,@suresh.iyer,Hybrid
+ORB01118,Kabir Rao,kabir.rao@orbitra.io,Data & AI,Analytics Engineer,L4,Bengaluru,2023-02-06,@kabir.rao,Hybrid
+ORB01119,Farah Verma,farah.verma@orbitra.io,People Operations,L&D Specialist,L3,Bengaluru,2026-01-23,@farah.verma,Hybrid
+ORB01120,Tanvi Singh,tanvi.singh@orbitra.io,Security,Security Engineer,L4,Bengaluru,2024-09-18,@tanvi.singh,Hybrid
+ORB01121,Isla Walker,isla.walker@orbitra.io,Sales,Account Executive,L2,London,2019-02-08,@isla.walker,Hybrid
+ORB01122,Ananya Sharma,ananya.sharma@orbitra.io,Finance,Payroll Specialist,L4,Bengaluru,2023-01-28,@ananya.sharma,Hybrid
+ORB01123,Meera Joshi,meera.joshi@orbitra.io,Legal,Paralegal,L4,Bengaluru,2026-01-20,@meera.joshi,Hybrid
+ORB01124,Ethan Miller,ethan.miller@orbitra.io,Admin & Workplace,Facilities Executive,L3,Austin,2017-09-14,@ethan.miller,Hybrid
+ORB01125,Nikhil Thomas,nikhil.thomas@orbitra.io,Sales,Sales Development Rep,L2,Hyderabad,2017-01-31,@nikhil.thomas,Hybrid
+ORB01126,Arjun Banerjee,arjun.banerjee@orbitra.io,Security,GRC Analyst,L3,Bengaluru,2017-10-23,@arjun.banerjee,Hybrid
+ORB01127,Shruti Kulkarni,shruti.kulkarni@orbitra.io,IT,IAM Engineer,L3,Bengaluru,2021-04-29,@shruti.kulkarni,Hybrid
+ORB01128,Aishwarya Banerjee,aishwarya.banerjee@orbitra.io,Marketing,Demand Gen Specialist,L3,Bengaluru,2016-09-14,@aishwarya.banerjee,Hybrid
+ORB01129,Noah Taylor,noah.taylor@orbitra.io,Engineering,SRE,L3,Austin,2022-11-17,@noah.taylor,Remote
+ORB01130,George Green,george.green@orbitra.io,IT,IAM Engineer,L3,London,2019-07-15,@george.green,Hybrid
+ORB01131,Aishwarya Agarwal,aishwarya.agarwal@orbitra.io,People Operations,HR Executive,L3,Hyderabad,2020-04-26,@aishwarya.agarwal,Hybrid
+ORB01132,Arnav Naidu,arnav.naidu@orbitra.io,Product,Product Designer,L3,Bengaluru,2024-03-12,@arnav.naidu,Hybrid
+ORB01133,Shruti Shetty,shruti.shetty@orbitra.io,IT,IT Support Engineer,L3,Hyderabad,2017-05-27,@shruti.shetty,Hybrid
+ORB01134,Siddharth Fernandes,siddharth.fernandes@orbitra.io,Finance,Accountant,L4,Bengaluru,2026-03-01,@siddharth.fernandes,Hybrid
+ORB01135,Ishaan Menon,ishaan.menon@orbitra.io,IT,Systems Administrator,L4,Bengaluru,2024-11-24,@ishaan.menon,Hybrid
+ORB01136,Ishaan Menon,ishaan.menon2@orbitra.io,Sales,Sales Development Rep,L3,Pune,2021-04-30,@ishaan.menon2,Hybrid
+ORB01137,Siddharth Sharma,siddharth.sharma2@orbitra.io,Admin & Workplace,Facilities Executive,L4,Pune,2018-03-11,@siddharth.sharma2,Hybrid
+ORB01138,Zoya Mehta,zoya.mehta@orbitra.io,Data & AI,ML Engineer,L2,Bengaluru,2021-08-04,@zoya.mehta,Hybrid
+ORB01139,Nikhil Bose,nikhil.bose@orbitra.io,Legal,Paralegal,L4,Hyderabad,2024-04-29,@nikhil.bose,Hybrid
+ORB01140,Deepak Rao,deepak.rao@orbitra.io,People Operations,HR Generalist,L3,Pune,2018-07-21,@deepak.rao,Hybrid
+ORB01141,Karan Naidu,karan.naidu@orbitra.io,Data & AI,Data Engineer,L3,Pune,2020-03-24,@karan.naidu,Hybrid
+ORB01142,Riya Shetty,riya.shetty@orbitra.io,Engineering,Staff Engineer,L5,Pune,2024-07-22,@riya.shetty,Hybrid
+ORB01143,Maria Malhotra,maria.malhotra@orbitra.io,People Operations,HR Generalist,L3,Hyderabad,2022-06-16,@maria.malhotra,Hybrid
+ORB01144,Zoya Fernandes,zoya.fernandes@orbitra.io,IT,Systems Administrator,L3,Bengaluru,2020-01-10,@zoya.fernandes,Hybrid
+ORB01145,Ethan Taylor,ethan.taylor@orbitra.io,Finance,Financial Analyst,L3,Austin,2016-11-26,@ethan.taylor,Hybrid
+ORB01146,Neha Verma,neha.verma2@orbitra.io,Admin & Workplace,Facilities Executive,L3,Pune,2016-10-30,@neha.verma2,Hybrid
+ORB01147,Varun Naidu,varun.naidu@orbitra.io,Data & AI,Analytics Engineer,L2,Hyderabad,2022-04-25,@varun.naidu,Hybrid
+ORB01148,Nikhil Mehta,nikhil.mehta@orbitra.io,Admin & Workplace,Facilities Executive,L2,Bengaluru,2021-09-06,@nikhil.mehta,Hybrid
+ORB01149,Varun Das,varun.das@orbitra.io,Legal,Paralegal,L4,Bengaluru,2017-04-25,@varun.das,Hybrid
+ORB01150,Chloe Lopez,chloe.lopez@orbitra.io,Marketing,Demand Gen Specialist,L4,Austin,2026-05-14,@chloe.lopez,Hybrid
+ORB01151,Aditya Das,aditya.das@orbitra.io,Data & AI,ML Engineer,L4,Pune,2024-02-03,@aditya.das,Hybrid
+ORB01152,Kabir Mehta,kabir.mehta@orbitra.io,Data & AI,Data Scientist,L3,Bengaluru,2018-04-13,@kabir.mehta,Hybrid
+ORB01153,Aditya Desai,aditya.desai@orbitra.io,Engineering,Staff Engineer,L5,Bengaluru,2020-06-08,@aditya.desai,Hybrid
+ORB01154,Nisha Chatterjee,nisha.chatterjee@orbitra.io,Finance,Financial Analyst,L2,Bengaluru,2018-05-19,@nisha.chatterjee,Hybrid
+ORB01155,Priyanka Malhotra,priyanka.malhotra@orbitra.io,Customer Success,Support Lead,L5,Bengaluru,2022-12-15,@priyanka.malhotra,Hybrid
+ORB01156,Pooja Pillai,pooja.pillai@orbitra.io,Sales,Account Executive,L3,Pune,2026-07-10,@pooja.pillai,Hybrid
+ORB01157,Ananya Iyer,ananya.iyer@orbitra.io,People Operations,Recruiter,L4,Pune,2019-10-09,@ananya.iyer,Hybrid
+ORB01158,Pooja Pillai,pooja.pillai2@orbitra.io,Sales,Sales Development Rep,L3,Bengaluru,2025-12-26,@pooja.pillai2,Hybrid
+ORB01159,Neha Singh,neha.singh@orbitra.io,Marketing,Demand Gen Specialist,L3,Bengaluru,2024-04-04,@neha.singh,Hybrid
+ORB01160,Shruti Kulkarni,shruti.kulkarni2@orbitra.io,Engineering,QA Engineer,L4,Hyderabad,2025-02-21,@shruti.kulkarni2,Hybrid
+ORB01161,Arjun Banerjee,arjun.banerjee2@orbitra.io,People Operations,Recruiter,L2,Bengaluru,2023-03-23,@arjun.banerjee2,Hybrid
+ORB01162,Isha Das,isha.das@orbitra.io,Sales,Sales Development Rep,L4,Bengaluru,2017-07-03,@isha.das,Hybrid
+ORB01163,Aditya Joshi,aditya.joshi@orbitra.io,People Operations,HR Executive,L4,Hyderabad,2020-07-04,@aditya.joshi,Hybrid
+ORB01164,Sneha Desai,sneha.desai@orbitra.io,Legal,Paralegal,L2,Bengaluru,2018-09-01,@sneha.desai,Hybrid
+ORB01165,Yash Chatterjee,yash.chatterjee@orbitra.io,IT,Systems Administrator,L2,Pune,2019-04-19,@yash.chatterjee,Hybrid
+ORB01166,Sneha Banerjee,sneha.banerjee@orbitra.io,Marketing,Marketing Manager,L3,Pune,2017-04-05,@sneha.banerjee,Hybrid
+ORB01167,Shruti Naidu,shruti.naidu@orbitra.io,IT,Systems Administrator,L2,Bengaluru,2025-04-13,@shruti.naidu,Hybrid
+ORB01168,Imran Reddy,imran.reddy@orbitra.io,People Operations,Recruiter,L4,Bengaluru,2024-10-24,@imran.reddy,Hybrid
+ORB01169,Neha Shetty,neha.shetty@orbitra.io,Admin & Workplace,Transport Coordinator,L2,Hyderabad,2023-12-26,@neha.shetty,Hybrid
+ORB01170,Priyanka Kumar,priyanka.kumar2@orbitra.io,IT,Systems Administrator,L4,Bengaluru,2018-11-24,@priyanka.kumar2,Hybrid
+ORB01171,Manoj Thomas,manoj.thomas2@orbitra.io,Legal,Paralegal,L4,Hyderabad,2020-12-29,@manoj.thomas2,Hybrid
+ORB01172,Aditya Joshi,aditya.joshi2@orbitra.io,People Operations,HR Executive,L2,Bengaluru,2019-01-18,@aditya.joshi2,Hybrid
+ORB01173,Neha Pillai,neha.pillai@orbitra.io,Marketing,Demand Gen Specialist,L4,Bengaluru,2024-03-23,@neha.pillai,Hybrid
+ORB01174,Maria Banerjee,maria.banerjee@orbitra.io,Legal,Legal Counsel,L3,Bengaluru,2023-10-05,@maria.banerjee,Hybrid
+ORB01175,Priyanka Mehta,priyanka.mehta@orbitra.io,Sales,Account Executive,L4,Pune,2020-07-27,@priyanka.mehta,Hybrid
+ORB01176,Nisha Naidu,nisha.naidu@orbitra.io,Marketing,Marketing Manager,L4,Pune,2020-07-14,@nisha.naidu,Hybrid
+ORB01177,Harsh Patel,harsh.patel@orbitra.io,Finance,AP Specialist,L2,Hyderabad,2017-10-14,@harsh.patel,Hybrid
+ORB01178,Kabir Malhotra,kabir.malhotra@orbitra.io,Customer Success,Support Engineer,L2,Pune,2025-03-28,@kabir.malhotra,Hybrid
+ORB01179,Joseph Menon,joseph.menon@orbitra.io,Data & AI,ML Engineer,L4,Bengaluru,2018-11-02,@joseph.menon,Hybrid
+ORB01180,Varun Fernandes,varun.fernandes@orbitra.io,Product,Product Manager,L3,Bengaluru,2026-01-16,@varun.fernandes,Hybrid
+ORB01181,Imran Kulkarni,imran.kulkarni@orbitra.io,Product,Product Manager,L4,Bengaluru,2026-02-17,@imran.kulkarni,Remote
+ORB01182,Harsh Hegde,harsh.hegde@orbitra.io,Customer Success,Technical Account Manager,L7,Bengaluru,2016-08-04,@harsh.hegde,Hybrid
+ORB01183,Karan Banerjee,karan.banerjee@orbitra.io,Finance,Accountant,L4,Bengaluru,2017-02-16,@karan.banerjee,Hybrid
+ORB01184,Freya Jones,freya.jones@orbitra.io,People Operations,HR Generalist,L4,London,2016-11-25,@freya.jones,Hybrid
+ORB01185,Farah Joshi,farah.joshi@orbitra.io,People Operations,HR Executive,L2,Hyderabad,2021-10-14,@farah.joshi,Hybrid
+ORB01186,Arnav Bose,arnav.bose@orbitra.io,Legal,Paralegal,L2,Bengaluru,2026-07-02,@arnav.bose,Hybrid
+ORB01187,Nikhil Iyer,nikhil.iyer@orbitra.io,Product,Product Designer,L4,Hyderabad,2023-07-08,@nikhil.iyer,Hybrid
+ORB01188,Mason Lopez,mason.lopez@orbitra.io,Security,GRC Analyst,L3,Austin,2022-01-31,@mason.lopez,Hybrid
+ORB01189,Siddharth Naidu,siddharth.naidu@orbitra.io,Admin & Workplace,Facilities Executive,L3,Bengaluru,2021-06-24,@siddharth.naidu,Hybrid
+ORB01190,Varun Shetty,varun.shetty@orbitra.io,People Operations,L&D Specialist,L3,Bengaluru,2024-08-06,@varun.shetty,Hybrid
+ORB01191,Rahul Malhotra,rahul.malhotra@orbitra.io,Sales,Solutions Engineer,L5,Bengaluru,2018-02-16,@rahul.malhotra,Hybrid
+ORB01192,Rohan Iyer,rohan.iyer@orbitra.io,Data & AI,Data Scientist,L3,Pune,2017-07-01,@rohan.iyer,Hybrid
+ORB01193,Karan Khan,karan.khan@orbitra.io,Engineering,QA Engineer,L4,Bengaluru,2022-09-18,@karan.khan,Hybrid
+ORB01194,Divya Shah,divya.shah@orbitra.io,Admin & Workplace,Transport Coordinator,L4,Bengaluru,2016-12-28,@divya.shah,Hybrid
+ORB01195,Tanvi Shah,tanvi.shah@orbitra.io,Data & AI,ML Engineer,L2,Hyderabad,2023-10-12,@tanvi.shah,Hybrid
+ORB01196,Harsh Naidu,harsh.naidu@orbitra.io,IT,Systems Administrator,L2,Bengaluru,2024-12-19,@harsh.naidu,Hybrid
+ORB01197,Aishwarya Naidu,aishwarya.naidu@orbitra.io,IT,IAM Engineer,L4,Bengaluru,2023-12-26,@aishwarya.naidu,Hybrid
+ORB01198,Arjun Thomas,arjun.thomas@orbitra.io,Admin & Workplace,Transport Coordinator,L2,Bengaluru,2018-06-09,@arjun.thomas,Hybrid
+ORB01199,Harry Hall,harry.hall@orbitra.io,Marketing,Marketing Manager,L2,London,2026-03-03,@harry.hall,Hybrid
+ORB01200,Shruti Iyer,shruti.iyer@orbitra.io,Product,Product Manager,L2,Hyderabad,2024-10-13,@shruti.iyer,Hybrid
+ORB01201,Divya Pillai,divya.pillai@orbitra.io,Marketing,Marketing Manager,L3,Bengaluru,2019-11-29,@divya.pillai,Hybrid
+ORB01202,Amelia Smith,amelia.smith@orbitra.io,Product,Senior Product Manager,L5,London,2024-11-16,@amelia.smith,Hybrid
+ORB01203,Jacob Miller,jacob.miller@orbitra.io,People Operations,L&D Specialist,L3,Austin,2023-03-23,@jacob.miller,Hybrid
+ORB01204,Kavya Fernandes,kavya.fernandes@orbitra.io,IT,IT Support Engineer,L3,Bengaluru,2021-03-27,@kavya.fernandes,Hybrid
+ORB01205,Noah Wilson,noah.wilson@orbitra.io,IT,IAM Engineer,L3,Austin,2016-12-04,@noah.wilson,Hybrid
+ORB01206,Ishaan Sharma,ishaan.sharma@orbitra.io,Customer Success,Technical Account Manager,L7,Hyderabad,2018-10-14,@ishaan.sharma,Hybrid
+ORB01207,Harry Wright,harry.wright@orbitra.io,Marketing,Marketing Manager,L2,London,2021-12-29,@harry.wright,Hybrid
+ORB01208,Karan Verma,karan.verma@orbitra.io,IT,IAM Engineer,L2,Bengaluru,2022-01-10,@karan.verma,Hybrid
+ORB01209,Mason Williams,mason.williams@orbitra.io,Finance,Accountant,L3,Austin,2016-08-16,@mason.williams,Hybrid
+ORB01210,Rahul Singh,rahul.singh@orbitra.io,Finance,Payroll Specialist,L4,Bengaluru,2023-08-06,@rahul.singh,Hybrid
+ORB01211,Shruti Sharma,shruti.sharma@orbitra.io,Marketing,Marketing Manager,L4,Bengaluru,2021-07-29,@shruti.sharma,Hybrid
+ORB01212,Kabir Mehta,kabir.mehta2@orbitra.io,Data & AI,ML Engineer,L3,Bengaluru,2023-01-08,@kabir.mehta2,Hybrid
+ORB01213,Shruti Naidu,shruti.naidu2@orbitra.io,Sales,Solutions Engineer,L5,Bengaluru,2018-11-25,@shruti.naidu2,Hybrid
+ORB01214,Rohan Chatterjee,rohan.chatterjee@orbitra.io,Admin & Workplace,Facilities Executive,L4,Bengaluru,2022-02-18,@rohan.chatterjee,Hybrid
+ORB01215,Freya Hall,freya.hall@orbitra.io,Legal,Legal Counsel,L2,London,2017-07-27,@freya.hall,Hybrid
+ORB01216,Diya Das,diya.das@orbitra.io,Product,Product Manager,L2,Bengaluru,2025-01-30,@diya.das,Hybrid
+ORB01217,Joseph Fernandes,joseph.fernandes@orbitra.io,Security,GRC Analyst,L4,Pune,2026-04-22,@joseph.fernandes,Hybrid
+ORB01218,Priyanka Desai,priyanka.desai2@orbitra.io,Admin & Workplace,Transport Coordinator,L2,Hyderabad,2021-05-07,@priyanka.desai2,Hybrid
+ORB01219,Tanvi Hegde,tanvi.hegde@orbitra.io,Sales,Account Executive,L3,Pune,2022-02-08,@tanvi.hegde,Hybrid
+ORB01220,Gaurav Patel,gaurav.patel@orbitra.io,Engineering,Staff Engineer,L5,Pune,2025-09-28,@gaurav.patel,Hybrid
