@@ -1,7 +1,8 @@
-"""Stage 2: Self-RAG retrieval decision over the Orbitra knowledge base.
+"""Stage 3: Self-RAG retrieval decision + document grading over the Orbitra knowledge base.
 
-Flow: question -> decide_retrieval -> (yes) retrieve -> generate -> answer
-                                   -> (no)  generate_direct      -> answer
+Flow: question -> decide_retrieval -> (yes) retrieve -> grade_documents -> (some relevant) generate -> answer
+                                                                        -> (none relevant) no_relevant_docs -> answer
+                                   -> (no)  generate_direct -> answer
 """
 from pathlib import Path
 from typing import Literal, TypedDict
@@ -92,7 +93,11 @@ vectorstore = get_vectorstore()
 retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
 
 # llm and prompt
-llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0)
+# max_retries: on a 429 (free tier is 8000 tokens/min) the client waits as Groq says, then retries
+llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0, max_retries=6)
+# yes/no judgments don't need deep thinking; fewer reasoning tokens = fewer rate-limit hits.
+# set on the model itself: llm.bind(reasoning_effort=...) is dropped by with_structured_output
+judge_llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0, max_retries=6, reasoning_effort="low")
 
 prompt = ChatPromptTemplate.from_messages([
     ("system",
@@ -127,7 +132,7 @@ decide_prompt = ChatPromptTemplate.from_messages([
      "for greetings, thanks, small talk, or general knowledge unrelated to Orbitra. When unsure, retrieve."),
     ("human", "{question}"),
 ])
-decider = decide_prompt | llm.with_structured_output(RetrievalDecision)
+decider = decide_prompt | judge_llm.with_structured_output(RetrievalDecision)
 
 direct_prompt = ChatPromptTemplate.from_messages([
     ("system",
@@ -138,12 +143,36 @@ direct_prompt = ChatPromptTemplate.from_messages([
 ])
 
 
+# document grading (Self-RAG's "IsRel" step), one grade per retrieved chunk
+class DocGrade(BaseModel):
+    """Relevance grade for one retrieved chunk."""
+    is_relevant: bool = Field(description="True if the chunk contains information that helps answer "
+        "the question; False if it is off-topic, superseded, or for a different region or group "
+        "than the question asks about.")
+    reason: str = Field(description="One short sentence explaining the grade.")
+
+
+grade_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "You grade whether a chunk from Orbitra's knowledge base is relevant to an employee's question. "
+     "Use the chunk's metadata: a chunk with status 'superseded' is never relevant, because a newer "
+     "version exists. A chunk whose applies_to clearly excludes the region or group the question is "
+     "about is not relevant. If the question names no region, any region can be relevant. Otherwise "
+     "be lenient: the chunk only needs to contain part of the answer."),
+    ("human",
+     "Question: {question}\n\nChunk metadata: doc_id={doc_id}, title={title}, status={status}, "
+     "applies_to={applies_to}\n\nChunk:\n{chunk}"),
+])
+grader = grade_prompt | judge_llm.with_structured_output(DocGrade)
+
+
 # the graph(state,nodes,edges)
 class GraphState(TypedDict):
     question: str
     should_retrieve: bool
     retrieval_reason: str
     documents: list[Document]
+    doc_grades: list[dict]
     answer: str
 
 
@@ -160,6 +189,30 @@ def route_after_decision(state: GraphState) -> Literal["retrieve", "generate_dir
 def retrieve(state: GraphState) -> dict:
     docs = retriever.invoke(state["question"])
     return {"documents": docs}
+
+
+def grade_documents(state: GraphState) -> dict:
+    docs = state["documents"]
+    grades = grader.batch([
+        {"question": state["question"], "chunk": d.page_content,
+         **{k: d.metadata.get(k, "?") for k in ("doc_id", "title", "status", "applies_to")}}
+        for d in docs
+    ])  # one LLM call per chunk, sent in parallel
+    # no reducer on "documents", so this filtered list replaces the one retrieve wrote
+    return {
+        "documents": [d for d, g in zip(docs, grades) if g.is_relevant],
+        "doc_grades": [{"doc_id": d.metadata.get("doc_id"), "relevant": g.is_relevant, "reason": g.reason}
+                       for d, g in zip(docs, grades)],
+    }
+
+
+def route_after_grading(state: GraphState) -> Literal["generate", "no_relevant_docs"]:
+    return "generate" if state["documents"] else "no_relevant_docs"
+
+
+def no_relevant_docs(state: GraphState) -> dict:
+    return {"answer": "I couldn't find anything in the Orbitra knowledge base that answers this. "
+                      "Try rephrasing, or raise an OrbitDesk ticket with the relevant team."}
 
 
 def generate(state: GraphState) -> dict:
@@ -179,12 +232,16 @@ def generate_direct(state: GraphState) -> dict:
 builder = StateGraph(GraphState)
 builder.add_node("decide_retrieval", decide_retrieval)
 builder.add_node("retrieve", retrieve)
+builder.add_node("grade_documents", grade_documents)
 builder.add_node("generate", generate)
+builder.add_node("no_relevant_docs", no_relevant_docs)
 builder.add_node("generate_direct", generate_direct)
 builder.add_edge(START, "decide_retrieval")
 builder.add_conditional_edges("decide_retrieval", route_after_decision)
-builder.add_edge("retrieve", "generate")
+builder.add_edge("retrieve", "grade_documents")
+builder.add_conditional_edges("grade_documents", route_after_grading)
 builder.add_edge("generate", END)
+builder.add_edge("no_relevant_docs", END)
 builder.add_edge("generate_direct", END)
 app = builder.compile()
 
@@ -199,6 +256,9 @@ def ask(question: str):
                 for d in update["documents"]:
                     print(f"  [{d.metadata.get('doc_id')}] status={d.metadata.get('status')}  "
                           f"{d.page_content[:80]!r}")
+            elif node == "grade_documents":
+                for g in update["doc_grades"]:
+                    print(f"  {'✓' if g['relevant'] else '✗'} [{g['doc_id']}] {g['reason']}")
             else:
                 print(update["answer"])
 
