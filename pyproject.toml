@@ -12,6 +12,7 @@ dependencies = [
     "langchain-groq>=1.1.3",
     "langchain-text-splitters>=1.1.3",
     "langgraph>=1.2.16",
+    "pydantic>=2.14.1",
     "pypdf>=6.21.1",
     "python-dotenv>=1.2.4",
     "pyyaml>=6.0.3",

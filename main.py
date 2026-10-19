@@ -1,9 +1,10 @@
-"""Stage 1: plain RAG over the Orbitra knowledge base.
+"""Stage 2: Self-RAG retrieval decision over the Orbitra knowledge base.
 
-Flow: question -> retrieve -> generate -> answer
+Flow: question -> decide_retrieval -> (yes) retrieve -> generate -> answer
+                                   -> (no)  generate_direct      -> answer
 """
 from pathlib import Path
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 import yaml
 from dotenv import load_dotenv
@@ -14,6 +15,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import END, START, StateGraph
+from pydantic import BaseModel, Field
 
 load_dotenv()
 
@@ -107,11 +109,52 @@ def format_docs(docs: list[Document]) -> str:
     return "\n\n".join(f"[{d.metadata.get('doc_id', '?')}] {d.page_content}" for d in docs)
 
 
+# retrieval decision (Self-RAG's "Retrieve" step), returned as a Pydantic object
+class RetrievalDecision(BaseModel):
+    """Decide whether the question needs Orbitra's knowledge base."""
+    should_retrieve: bool = Field(description="True if answering needs Orbitra's internal documents "
+        "(policies, processes, people, products, company facts); False for greetings, small talk, "
+        "or general knowledge unrelated to Orbitra.")
+    reason: str = Field(description="One short sentence explaining the decision.")
+
+
+decide_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "You decide whether a question to OrbitBot, the internal assistant of Orbitra Technologies, "
+     "needs a search of the company knowledge base (HR, IT, security, finance, admin, legal, "
+     "engineering, product and sales documents). Retrieve for anything about Orbitra or how things "
+     "work there, even if it sounds general (e.g. 'how do I reset my password?'). Do not retrieve "
+     "for greetings, thanks, small talk, or general knowledge unrelated to Orbitra. When unsure, retrieve."),
+    ("human", "{question}"),
+])
+decider = decide_prompt | llm.with_structured_output(RetrievalDecision)
+
+direct_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "You are OrbitBot, an internal assistant for Orbitra Technologies employees. Answer briefly. "
+     "This question was judged not to need company documents, so do not state any Orbitra-specific "
+     "facts or policies; if the user needs those, suggest they ask about them directly."),
+    ("human", "{question}"),
+])
+
+
 # the graph(state,nodes,edges)
 class GraphState(TypedDict):
     question: str
+    should_retrieve: bool
+    retrieval_reason: str
     documents: list[Document]
     answer: str
+
+
+def decide_retrieval(state: GraphState) -> dict:
+    decision = decider.invoke({"question": state["question"]})
+    return {"should_retrieve": decision.should_retrieve, "retrieval_reason": decision.reason}
+
+
+# router, not a node: only reads the state and names the next node
+def route_after_decision(state: GraphState) -> Literal["retrieve", "generate_direct"]:
+    return "retrieve" if state["should_retrieve"] else "generate_direct"
 
 
 def retrieve(state: GraphState) -> dict:
@@ -128,12 +171,21 @@ def generate(state: GraphState) -> dict:
     return {"answer": response.content}
 
 
+def generate_direct(state: GraphState) -> dict:
+    response = (direct_prompt | llm).invoke({"question": state["question"]})
+    return {"answer": response.content}
+
+
 builder = StateGraph(GraphState)
+builder.add_node("decide_retrieval", decide_retrieval)
 builder.add_node("retrieve", retrieve)
 builder.add_node("generate", generate)
-builder.add_edge(START, "retrieve")
+builder.add_node("generate_direct", generate_direct)
+builder.add_edge(START, "decide_retrieval")
+builder.add_conditional_edges("decide_retrieval", route_after_decision)
 builder.add_edge("retrieve", "generate")
 builder.add_edge("generate", END)
+builder.add_edge("generate_direct", END)
 app = builder.compile()
 
 
@@ -141,7 +193,9 @@ def ask(question: str):
     for step in app.stream({"question": question}, stream_mode="updates"):
         for node, update in step.items():
             print(f"--- {node} ---")
-            if node == "retrieve":
+            if node == "decide_retrieval":
+                print(f"  retrieve={update['should_retrieve']}  ({update['retrieval_reason']})")
+            elif node == "retrieve":
                 for d in update["documents"]:
                     print(f"  [{d.metadata.get('doc_id')}] status={d.metadata.get('status')}  "
                           f"{d.page_content[:80]!r}")
