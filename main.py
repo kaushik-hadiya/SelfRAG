@@ -1,11 +1,16 @@
-"""Stage 4: Self-RAG retrieval decision + document grading + support check over the Orbitra knowledge base.
+"""Stage 5: Self-RAG retrieval decision + document grading + support check + usefulness check
+with query rewriting, over the Orbitra knowledge base.
 
-Flow: question -> decide_retrieval -> (yes) retrieve -> grade_documents -> (some relevant) generate -> check_support
-                                                                        -> (none relevant) no_relevant_docs -> answer
+Flow: question -> decide_retrieval -> (yes) retrieve -> grade_documents
                                    -> (no)  generate_direct -> answer
-      check_support -> (fully supported) answer
+      grade_documents -> (some relevant) generate -> check_support
+                      -> (none relevant, rewrite left) rewrite_query -> retrieve
+                      -> (none relevant, no rewrite left) no_relevant_docs -> answer
+      check_support -> (fully supported) check_useful
                     -> (not supported, retry left) revise_answer -> check_support
                     -> (not supported, no retry left) flag_unsupported -> answer
+      check_useful -> (useful, or no rewrite left) answer
+                   -> (not useful, rewrite left) rewrite_query -> retrieve
 """
 from pathlib import Path
 from typing import Literal, TypedDict
@@ -182,11 +187,12 @@ class SupportGrade(BaseModel):
 support_prompt = ChatPromptTemplate.from_messages([
     ("system",
      "You check whether an answer from OrbitBot is grounded in the retrieved chunks from Orbitra's "
-     "knowledge base. A claim is supported if a chunk states it, or if it is a direct calculation "
-     "or rewording of what a chunk states. Saying 'I don't know', asking the user a clarifying "
-     "question, and citations like [HR-LV-001] are not claims. Anything else, such as numbers, "
-     "names, rules or steps not found in the chunks, is unsupported.\n\nChunks:\n{context}"),
-    ("human", "Answer to check:\n{answer}"),
+     "knowledge base. A claim is supported if a chunk states it, if the user stated it in their "
+     "question (e.g. their own salary, dates or counts), or if it is a direct calculation or "
+     "rewording of those. Saying 'I don't know', asking the user a clarifying question, and "
+     "citations like [HR-LV-001] are not claims. Anything else, such as numbers, names, rules or "
+     "steps not found in the chunks or the question, is unsupported.\n\nChunks:\n{context}"),
+    ("human", "Question: {question}\n\nAnswer to check:\n{answer}"),
 ])
 support_checker = support_prompt | judge_llm.with_structured_output(SupportGrade)
 
@@ -203,6 +209,39 @@ revise_prompt = ChatPromptTemplate.from_messages([
 MAX_GENERATIONS = 2   # first answer + one revision
 
 
+# usefulness check (Self-RAG's "IsUse" step): does the answer address the question?
+class UsefulnessGrade(BaseModel):
+    """Whether the answer actually addresses the user's question."""
+    is_useful: bool = Field(description="True if the answer gives the user what they asked for, or asks "
+        "a clarifying question with the options from the documents; False if it says the information "
+        "is not available or answers a different question.")
+    reason: str = Field(description="One short sentence explaining the grade.")
+
+
+useful_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "You check whether OrbitBot's answer is useful to the employee who asked the question. Judge only "
+     "whether it addresses what was asked, not whether it is correct; correctness was already checked."),
+    ("human", "Question: {question}\n\nAnswer:\n{answer}"),
+])
+usefulness_checker = useful_prompt | judge_llm.with_structured_output(UsefulnessGrade)
+
+# query rewriting: a new search query for retrieve only; grading and generation keep the original question
+rewrite_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "You rewrite an employee's question into a search query for Orbitra's internal knowledge base "
+     "(HR, IT, finance, admin, legal, engineering policies). The search is semantic, over policy "
+     "documents. Never copy the user's own amounts, salaries, counts or dates into the query, and "
+     "drop any calculation; keep the region/location; use the words a "
+     "policy document would use (e.g. 'entitlement', 'leave types', 'notice period'). "
+     "Return only the query."),
+    ("human", "Question: {question}\n\nThis search query did not find the answer: {previous_query}"),
+])
+rewriter = rewrite_prompt | judge_llm
+
+MAX_REWRITES = 1
+
+
 # the graph(state,nodes,edges)
 class GraphState(TypedDict):
     question: str
@@ -214,6 +253,10 @@ class GraphState(TypedDict):
     generation_attempts: int
     support: str
     unsupported_claims: list[str]
+    search_query: str  # what retrieve searches for; the original question until a rewrite
+    rewrite_count: int
+    is_useful: bool
+    usefulness_reason: str
 
 
 def decide_retrieval(state: GraphState) -> dict:
@@ -227,7 +270,7 @@ def route_after_decision(state: GraphState) -> Literal["retrieve", "generate_dir
 
 
 def retrieve(state: GraphState) -> dict:
-    docs = retriever.invoke(state["question"])
+    docs = retriever.invoke(state.get("search_query") or state["question"])
     return {"documents": docs}
 
 
@@ -246,8 +289,12 @@ def grade_documents(state: GraphState) -> dict:
     }
 
 
-def route_after_grading(state: GraphState) -> Literal["generate", "no_relevant_docs"]:
-    return "generate" if state["documents"] else "no_relevant_docs"
+def route_after_grading(state: GraphState) -> Literal["generate", "rewrite_query", "no_relevant_docs"]:
+    if state["documents"]:
+        return "generate"
+    if state.get("rewrite_count", 0) < MAX_REWRITES:
+        return "rewrite_query"
+    return "no_relevant_docs"
 
 
 def no_relevant_docs(state: GraphState) -> dict:
@@ -276,14 +323,18 @@ def revise_answer(state: GraphState) -> dict:
 
 
 def check_support(state: GraphState) -> dict:
-    grade = support_checker.invoke({"context": format_docs(state["documents"]), "answer": state["answer"]})
+    grade = support_checker.invoke({
+        "context": format_docs(state["documents"]),
+        "question": state["question"],  # the user's own numbers are valid inputs to the answer
+        "answer": state["answer"],
+    })
     return {"support": grade.support, "unsupported_claims": grade.unsupported_claims}
 
 
 # END is just the string "__end__", so a router can finish the graph directly
-def route_after_support(state: GraphState) -> Literal["revise_answer", "flag_unsupported", "__end__"]:
+def route_after_support(state: GraphState) -> Literal["check_useful", "revise_answer", "flag_unsupported"]:
     if state["support"] == "fully":
-        return END
+        return "check_useful"
     if state["generation_attempts"] < MAX_GENERATIONS:
         return "revise_answer"
     return "flag_unsupported"
@@ -293,6 +344,26 @@ def flag_unsupported(state: GraphState) -> dict:
     claims = "\n".join(f"- {c}" for c in state["unsupported_claims"])
     return {"answer": state["answer"] + "\n\n⚠️ I couldn't verify these parts against the "
                                         "knowledge base:\n" + claims}
+
+
+def check_useful(state: GraphState) -> dict:
+    grade = usefulness_checker.invoke({"question": state["question"], "answer": state["answer"]})
+    return {"is_useful": grade.is_useful, "usefulness_reason": grade.reason}
+
+
+# a grounded "I don't know" is still a fine final answer once the rewrite is used up
+def route_after_useful(state: GraphState) -> Literal["rewrite_query", "__end__"]:
+    if state["is_useful"] or state.get("rewrite_count", 0) >= MAX_REWRITES:
+        return END
+    return "rewrite_query"
+
+
+def rewrite_query(state: GraphState) -> dict:
+    new_query = rewriter.invoke({
+        "question": state["question"],
+        "previous_query": state.get("search_query") or state["question"],
+    }).content.strip()
+    return {"search_query": new_query, "rewrite_count": state.get("rewrite_count", 0) + 1}
 
 
 def generate_direct(state: GraphState) -> dict:
@@ -308,6 +379,8 @@ builder.add_node("generate", generate)
 builder.add_node("check_support", check_support)
 builder.add_node("revise_answer", revise_answer)
 builder.add_node("flag_unsupported", flag_unsupported)
+builder.add_node("check_useful", check_useful)
+builder.add_node("rewrite_query", rewrite_query)
 builder.add_node("no_relevant_docs", no_relevant_docs)
 builder.add_node("generate_direct", generate_direct)
 builder.add_edge(START, "decide_retrieval")
@@ -317,6 +390,8 @@ builder.add_conditional_edges("grade_documents", route_after_grading)
 builder.add_edge("generate", "check_support")
 builder.add_conditional_edges("check_support", route_after_support)
 builder.add_edge("revise_answer", "check_support")
+builder.add_conditional_edges("check_useful", route_after_useful)
+builder.add_edge("rewrite_query", "retrieve")  # loop back with the new search query
 builder.add_edge("flag_unsupported", END)
 builder.add_edge("no_relevant_docs", END)
 builder.add_edge("generate_direct", END)
@@ -340,6 +415,10 @@ def ask(question: str):
                 print(f"  support={update['support']}")
                 for c in update["unsupported_claims"]:
                     print(f"  ✗ {c}")
+            elif node == "check_useful":
+                print(f"  useful={update['is_useful']}  ({update['usefulness_reason']})")
+            elif node == "rewrite_query":
+                print(f"  🔁 new query: {update['search_query']!r}")
             else:
                 print(update["answer"])
 
