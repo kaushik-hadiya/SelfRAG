@@ -1,8 +1,11 @@
-"""Stage 3: Self-RAG retrieval decision + document grading over the Orbitra knowledge base.
+"""Stage 4: Self-RAG retrieval decision + document grading + support check over the Orbitra knowledge base.
 
-Flow: question -> decide_retrieval -> (yes) retrieve -> grade_documents -> (some relevant) generate -> answer
+Flow: question -> decide_retrieval -> (yes) retrieve -> grade_documents -> (some relevant) generate -> check_support
                                                                         -> (none relevant) no_relevant_docs -> answer
                                    -> (no)  generate_direct -> answer
+      check_support -> (fully supported) answer
+                    -> (not supported, retry left) generate again with feedback
+                    -> (not supported, no retry left) flag_unsupported -> answer
 """
 from pathlib import Path
 from typing import Literal, TypedDict
@@ -106,7 +109,7 @@ prompt = ChatPromptTemplate.from_messages([
      "contain the answer, say you don't know. If the answer depends on details the "
      "user did not give (location, level, etc.), list the options from the context "
      "and ask which applies. Cite the doc_id of every source you use, like "
-     "[HR-LV-001].\n\nContext:\n{context}"),
+     "[HR-LV-001].\n\nContext:\n{context}{feedback}"),
     ("human", "{question}"),
 ])
 
@@ -166,6 +169,30 @@ grade_prompt = ChatPromptTemplate.from_messages([
 grader = grade_prompt | judge_llm.with_structured_output(DocGrade)
 
 
+# support check (Self-RAG's "IsSup" step): is the answer grounded in the chunks?
+class SupportGrade(BaseModel):
+    """How well the retrieved chunks support the generated answer."""
+    support: Literal["fully", "partially", "none"] = Field(description="'fully' if every factual "
+        "claim in the answer is stated in, or directly calculated from, the chunks; 'partially' if "
+        "some claims are not; 'none' if the answer is mostly unsupported.")
+    unsupported_claims: list[str] = Field(description="Each claim not backed by the chunks; "
+        "empty if fully supported.")
+
+
+support_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "You check whether an answer from OrbitBot is grounded in the retrieved chunks from Orbitra's "
+     "knowledge base. A claim is supported if a chunk states it, or if it is a direct calculation "
+     "or rewording of what a chunk states. Saying 'I don't know', asking the user a clarifying "
+     "question, and citations like [HR-LV-001] are not claims. Anything else, such as numbers, "
+     "names, rules or steps not found in the chunks, is unsupported.\n\nChunks:\n{context}"),
+    ("human", "Answer to check:\n{answer}"),
+])
+support_checker = support_prompt | judge_llm.with_structured_output(SupportGrade)
+
+MAX_GENERATIONS = 2   # first answer + one retry with feedback
+
+
 # the graph(state,nodes,edges)
 class GraphState(TypedDict):
     question: str
@@ -174,6 +201,9 @@ class GraphState(TypedDict):
     documents: list[Document]
     doc_grades: list[dict]
     answer: str
+    generation_attempts: int
+    support: str
+    unsupported_claims: list[str]
 
 
 def decide_retrieval(state: GraphState) -> dict:
@@ -216,12 +246,39 @@ def no_relevant_docs(state: GraphState) -> dict:
 
 
 def generate(state: GraphState) -> dict:
+    feedback = ""
+    if state.get("unsupported_claims"):  # we are on a retry
+        feedback = ("\n\nYour previous answer included claims not found in the context: "
+                    + "; ".join(state["unsupported_claims"])
+                    + ". Remove them and answer only from the context.")
     chain = prompt | llm
     response = chain.invoke({
         "context": format_docs(state["documents"]),
         "question": state["question"],
+        "feedback": feedback,
     })
-    return {"answer": response.content}
+    # .get(): these keys are not in the state yet on the first pass
+    return {"answer": response.content, "generation_attempts": state.get("generation_attempts", 0) + 1}
+
+
+def check_support(state: GraphState) -> dict:
+    grade = support_checker.invoke({"context": format_docs(state["documents"]), "answer": state["answer"]})
+    return {"support": grade.support, "unsupported_claims": grade.unsupported_claims}
+
+
+# END is just the string "__end__", so a router can finish the graph directly
+def route_after_support(state: GraphState) -> Literal["generate", "flag_unsupported", "__end__"]:
+    if state["support"] == "fully":
+        return END
+    if state["generation_attempts"] < MAX_GENERATIONS:
+        return "generate"
+    return "flag_unsupported"
+
+
+def flag_unsupported(state: GraphState) -> dict:
+    claims = "\n".join(f"- {c}" for c in state["unsupported_claims"])
+    return {"answer": state["answer"] + "\n\n⚠️ I couldn't verify these parts against the "
+                                        "knowledge base:\n" + claims}
 
 
 def generate_direct(state: GraphState) -> dict:
@@ -234,13 +291,17 @@ builder.add_node("decide_retrieval", decide_retrieval)
 builder.add_node("retrieve", retrieve)
 builder.add_node("grade_documents", grade_documents)
 builder.add_node("generate", generate)
+builder.add_node("check_support", check_support)
+builder.add_node("flag_unsupported", flag_unsupported)
 builder.add_node("no_relevant_docs", no_relevant_docs)
 builder.add_node("generate_direct", generate_direct)
 builder.add_edge(START, "decide_retrieval")
 builder.add_conditional_edges("decide_retrieval", route_after_decision)
 builder.add_edge("retrieve", "grade_documents")
 builder.add_conditional_edges("grade_documents", route_after_grading)
-builder.add_edge("generate", END)
+builder.add_edge("generate", "check_support")
+builder.add_conditional_edges("check_support", route_after_support)
+builder.add_edge("flag_unsupported", END)
 builder.add_edge("no_relevant_docs", END)
 builder.add_edge("generate_direct", END)
 app = builder.compile()
@@ -259,6 +320,10 @@ def ask(question: str):
             elif node == "grade_documents":
                 for g in update["doc_grades"]:
                     print(f"  {'✓' if g['relevant'] else '✗'} [{g['doc_id']}] {g['reason']}")
+            elif node == "check_support":
+                print(f"  support={update['support']}")
+                for c in update["unsupported_claims"]:
+                    print(f"  ✗ {c}")
             else:
                 print(update["answer"])
 
