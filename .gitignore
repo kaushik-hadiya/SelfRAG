@@ -18,3 +18,6 @@ chroma_db/
 .env
 .ipynb_checkpoints
 *.zip
+
+# eval results (re-creatable with eval/run_eval.py)
+eval/results_*.jsonl

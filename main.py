@@ -1,5 +1,6 @@
 """Stage 5: Self-RAG retrieval decision + document grading + support check + usefulness check
 with query rewriting, over the Orbitra knowledge base.
+Retrieval is hybrid: vector + BM25 keyword search, merged with RRF, then reranked by a cross-encoder.
 
 Flow: question -> decide_retrieval -> (yes) retrieve -> grade_documents
                                    -> (no)  generate_direct -> answer
@@ -12,13 +13,16 @@ Flow: question -> decide_retrieval -> (yes) retrieve -> grade_documents
       check_useful -> (useful, or no rewrite left) answer
                    -> (not useful, rewrite left) rewrite_query -> retrieve
 """
+import re
 from pathlib import Path
 from typing import Literal, TypedDict
 
 import yaml
 from dotenv import load_dotenv
+from fastembed.rerank.cross_encoder import TextCrossEncoder
 from langchain_chroma import Chroma
 from langchain_community.embeddings import FastEmbedEmbeddings
+from langchain_community.retrievers import BM25Retriever
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
@@ -71,14 +75,13 @@ embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5", cache_dir=
 
 
 # embeddings and the vectorstore (build once, and then load)
-def get_vectorstore() -> Chroma:
+def get_vectorstore(chunks: list[Document]) -> Chroma:
     """Load the saved Chroma DB, or (re)build it if it is missing or incomplete."""
     vectorstore = Chroma(
         collection_name=COLLECTION,
         embedding_function=embeddings,
         persist_directory=CHROMA_DIR,
     )
-    chunks = splitter.split_documents(load_documents())
 
     # fewer chunks than expected means first run, or an earlier build crashed halfway
     stored = len(vectorstore.get(include=[])["ids"])
@@ -97,8 +100,42 @@ def get_vectorstore() -> Chroma:
     return vectorstore
 
 
-vectorstore = get_vectorstore()
-retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+chunks = splitter.split_documents(load_documents())
+vectorstore = get_vectorstore(chunks)
+
+
+# hybrid search: vector + BM25 keyword candidates, merged with RRF, then reranked
+# keyword search catches exact words like "comp-off" that the embedding model misses
+def tokenize(text: str) -> list[str]:
+    return re.findall(r"\w+", text.lower())
+
+
+CANDIDATES = 12
+TOP_K = 4
+vector_retriever = vectorstore.as_retriever(search_kwargs={"k": CANDIDATES})
+bm25_retriever = BM25Retriever.from_documents(chunks, k=CANDIDATES, preprocess_func=tokenize)
+
+# a cross-encoder reads the query and each chunk together, so it judges relevance much better
+# than comparing two separate embeddings; ~130 MB ONNX model, downloaded into models/
+reranker = TextCrossEncoder("jinaai/jina-reranker-v1-turbo-en", cache_dir=MODELS_DIR)
+
+
+def reciprocal_rank_fusion(*ranked_lists: list[Document], k: int = 60) -> list[Document]:
+    """Merge rankings: a chunk scores 1/(k + rank) in every list it appears in."""
+    scores, docs = {}, {}
+    for ranked in ranked_lists:
+        for rank, doc in enumerate(ranked, 1):
+            key = (doc.metadata["source"], doc.page_content)
+            scores[key] = scores.get(key, 0) + 1 / (k + rank)
+            docs[key] = doc
+    return [docs[key] for key in sorted(scores, key=scores.get, reverse=True)]
+
+
+def hybrid_search(query: str) -> list[Document]:
+    candidates = reciprocal_rank_fusion(vector_retriever.invoke(query), bm25_retriever.invoke(query))[:CANDIDATES]
+    scores = reranker.rerank(query, [d.page_content for d in candidates], batch_size=4)
+    ranked = sorted(zip(scores, candidates), key=lambda pair: pair[0], reverse=True)
+    return [doc for _, doc in ranked[:TOP_K]]
 
 # llm and prompt
 # max_retries: on a 429 (free tier is 8000 tokens/min) the client waits as Groq says, then retries
@@ -270,7 +307,7 @@ def route_after_decision(state: GraphState) -> Literal["retrieve", "generate_dir
 
 
 def retrieve(state: GraphState) -> dict:
-    docs = retriever.invoke(state.get("search_query") or state["question"])
+    docs = hybrid_search(state.get("search_query") or state["question"])
     return {"documents": docs}
 
 
