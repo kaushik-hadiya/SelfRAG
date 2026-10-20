@@ -4,7 +4,7 @@ Flow: question -> decide_retrieval -> (yes) retrieve -> grade_documents -> (some
                                                                         -> (none relevant) no_relevant_docs -> answer
                                    -> (no)  generate_direct -> answer
       check_support -> (fully supported) answer
-                    -> (not supported, retry left) generate again with feedback
+                    -> (not supported, retry left) revise_answer -> check_support
                     -> (not supported, no retry left) flag_unsupported -> answer
 """
 from pathlib import Path
@@ -109,7 +109,7 @@ prompt = ChatPromptTemplate.from_messages([
      "contain the answer, say you don't know. If the answer depends on details the "
      "user did not give (location, level, etc.), list the options from the context "
      "and ask which applies. Cite the doc_id of every source you use, like "
-     "[HR-LV-001].\n\nContext:\n{context}{feedback}"),
+     "[HR-LV-001].\n\nContext:\n{context}"),
     ("human", "{question}"),
 ])
 
@@ -190,7 +190,17 @@ support_prompt = ChatPromptTemplate.from_messages([
 ])
 support_checker = support_prompt | judge_llm.with_structured_output(SupportGrade)
 
-MAX_GENERATIONS = 2   # first answer + one retry with feedback
+# used when the support check fails: edit the previous answer instead of starting over
+revise_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "You are OrbitBot, an internal assistant for Orbitra Technologies employees. Your previous "
+     "answer contained claims that the context does not support. Remove or correct only those "
+     "claims and keep the rest of the answer as it was. Do not add any new details, even ones that "
+     "seem helpful. Keep the doc_id citations like [HR-LV-001].\n\nContext:\n{context}"),
+    ("human", "Question: {question}\n\nPrevious answer:\n{answer}\n\nUnsupported claims:\n{claims}"),
+])
+
+MAX_GENERATIONS = 2   # first answer + one revision
 
 
 # the graph(state,nodes,edges)
@@ -246,19 +256,23 @@ def no_relevant_docs(state: GraphState) -> dict:
 
 
 def generate(state: GraphState) -> dict:
-    feedback = ""
-    if state.get("unsupported_claims"):  # we are on a retry
-        feedback = ("\n\nYour previous answer included claims not found in the context: "
-                    + "; ".join(state["unsupported_claims"])
-                    + ". Remove them and answer only from the context.")
     chain = prompt | llm
     response = chain.invoke({
         "context": format_docs(state["documents"]),
         "question": state["question"],
-        "feedback": feedback,
     })
-    # .get(): these keys are not in the state yet on the first pass
-    return {"answer": response.content, "generation_attempts": state.get("generation_attempts", 0) + 1}
+    return {"answer": response.content, "generation_attempts": 1}
+
+
+def revise_answer(state: GraphState) -> dict:
+    claims = "\n".join(f"- {c}" for c in state["unsupported_claims"])
+    response = (revise_prompt | llm).invoke({
+        "context": format_docs(state["documents"]),
+        "question": state["question"],
+        "answer": state["answer"],
+        "claims": claims,
+    })
+    return {"answer": response.content, "generation_attempts": state["generation_attempts"] + 1}
 
 
 def check_support(state: GraphState) -> dict:
@@ -267,11 +281,11 @@ def check_support(state: GraphState) -> dict:
 
 
 # END is just the string "__end__", so a router can finish the graph directly
-def route_after_support(state: GraphState) -> Literal["generate", "flag_unsupported", "__end__"]:
+def route_after_support(state: GraphState) -> Literal["revise_answer", "flag_unsupported", "__end__"]:
     if state["support"] == "fully":
         return END
     if state["generation_attempts"] < MAX_GENERATIONS:
-        return "generate"
+        return "revise_answer"
     return "flag_unsupported"
 
 
@@ -292,6 +306,7 @@ builder.add_node("retrieve", retrieve)
 builder.add_node("grade_documents", grade_documents)
 builder.add_node("generate", generate)
 builder.add_node("check_support", check_support)
+builder.add_node("revise_answer", revise_answer)
 builder.add_node("flag_unsupported", flag_unsupported)
 builder.add_node("no_relevant_docs", no_relevant_docs)
 builder.add_node("generate_direct", generate_direct)
@@ -301,6 +316,7 @@ builder.add_edge("retrieve", "grade_documents")
 builder.add_conditional_edges("grade_documents", route_after_grading)
 builder.add_edge("generate", "check_support")
 builder.add_conditional_edges("check_support", route_after_support)
+builder.add_edge("revise_answer", "check_support")
 builder.add_edge("flag_unsupported", END)
 builder.add_edge("no_relevant_docs", END)
 builder.add_edge("generate_direct", END)
