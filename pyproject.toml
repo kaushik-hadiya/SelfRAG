@@ -1,7 +1,7 @@
 [project]
 name = "selfrag"
 version = "0.1.0"
-description = "Add your description here"
+description = "Self-RAG over a synthetic company knowledge base with LangGraph: retrieval decision, relevance grading, support and usefulness checks, query rewriting, and hybrid BM25 + vector search with reranking"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
