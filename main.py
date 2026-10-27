@@ -6,12 +6,13 @@ Flow: question -> decide_retrieval -> (yes) retrieve -> grade_documents
                                    -> (no)  generate_direct -> answer
       grade_documents -> (some relevant) generate -> check_support
                       -> (none relevant, rewrite left) rewrite_query -> retrieve
-                      -> (none relevant, no rewrite left) no_relevant_docs -> answer
+                      -> (none relevant, no rewrite left) suggest_contact -> answer
       check_support -> (fully supported) check_useful
                     -> (not supported, retry left) revise_answer -> check_support
                     -> (not supported, no retry left) flag_unsupported -> answer
-      check_useful -> (useful, or no rewrite left) answer
+      check_useful -> (useful) answer
                    -> (not useful, rewrite left) rewrite_query -> retrieve
+                   -> (not useful, no rewrite left) suggest_contact -> answer
 """
 import re
 from pathlib import Path
@@ -282,6 +283,23 @@ rewriter = rewrite_prompt | judge_llm
 MAX_REWRITES = 1
 
 
+# when the knowledge base can't answer: point to the owner of the closest document (from its metadata)
+class ContactChoice(BaseModel):
+    """Pick the document whose owning team can best help with the question."""
+    doc_id: str | None = Field(description="doc_id of the retrieved document closest in topic to the "
+        "question, so its owner can help; None if none of them is about the same topic.")
+
+
+contact_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "OrbitBot could not answer an employee's question from Orbitra's knowledge base. From the "
+     "documents that were retrieved, pick the one whose owning team is the best contact for this "
+     "question (same topic, e.g. benefits, leave, IT access). Pick None if none is about the same topic."),
+    ("human", "Question: {question}\n\nRetrieved documents:\n{documents}"),
+])
+contact_picker = contact_prompt | judge_llm.with_structured_output(ContactChoice)
+
+
 # the graph(state,nodes,edges)
 class GraphState(TypedDict):
     question: str
@@ -324,22 +342,33 @@ def grade_documents(state: GraphState) -> dict:
     # no reducer on "documents", so this filtered list replaces the one retrieve wrote
     return {
         "documents": [d for d, g in zip(docs, grades) if g.is_relevant],
-        "doc_grades": [{"doc_id": d.metadata.get("doc_id"), "relevant": g.is_relevant, "reason": g.reason}
+        # title/department/owner: suggest_contact uses them when nothing answers the question
+        "doc_grades": [{"doc_id": d.metadata.get("doc_id"), "relevant": g.is_relevant, "reason": g.reason,
+                        **{k: d.metadata.get(k, "?") for k in ("title", "department", "owner")}}
                        for d, g in zip(docs, grades)],
     }
 
 
-def route_after_grading(state: GraphState) -> Literal["generate", "rewrite_query", "no_relevant_docs"]:
+def route_after_grading(state: GraphState) -> Literal["generate", "rewrite_query", "suggest_contact"]:
     if state["documents"]:
         return "generate"
     if state.get("rewrite_count", 0) < MAX_REWRITES:
         return "rewrite_query"
-    return "no_relevant_docs"
+    return "suggest_contact"
 
 
-def no_relevant_docs(state: GraphState) -> dict:
-    return {"answer": "I couldn't find anything in the Orbitra knowledge base that answers this. "
-                      "Try rephrasing, or raise an OrbitDesk ticket with the relevant team."}
+def suggest_contact(state: GraphState) -> dict:
+    docs = {g["doc_id"]: g for g in state["doc_grades"]}   # one entry per document
+    listing = "\n".join(f"- {g['doc_id']}: {g['title']} (team: {g['department']})" for g in docs.values())
+    choice = contact_picker.invoke({"question": state["question"], "documents": listing})
+    # the LLM only picks a doc_id; the email comes from the document's metadata, so it can't be made up
+    contact = docs.get(choice.doc_id)
+    tip = (f"The closest policy is {contact['title']} [{contact['doc_id']}], owned by "
+           f"{contact['department']}: you can ask them at {contact['owner']}." if contact else
+           "Try rephrasing, or raise an OrbitDesk ticket with the relevant team.")
+    if state["documents"]:   # an answer was written but didn't help: keep it, add the contact
+        return {"answer": state["answer"] + "\n\n" + tip}
+    return {"answer": "I couldn't find an answer to this in the Orbitra knowledge base. " + tip}
 
 
 def generate(state: GraphState) -> dict:
@@ -391,11 +420,13 @@ def check_useful(state: GraphState) -> dict:
     return {"is_useful": grade.is_useful, "usefulness_reason": grade.reason}
 
 
-# a grounded "I don't know" is still a fine final answer once the rewrite is used up
-def route_after_useful(state: GraphState) -> Literal["rewrite_query", "__end__"]:
-    if state["is_useful"] or state.get("rewrite_count", 0) >= MAX_REWRITES:
+# not useful after the rewrite (e.g. "I don't know"): point the user to a contact instead
+def route_after_useful(state: GraphState) -> Literal["__end__", "rewrite_query", "suggest_contact"]:
+    if state["is_useful"]:
         return END
-    return "rewrite_query"
+    if state.get("rewrite_count", 0) < MAX_REWRITES:
+        return "rewrite_query"
+    return "suggest_contact"
 
 
 def rewrite_query(state: GraphState) -> dict:
@@ -421,7 +452,7 @@ builder.add_node("revise_answer", revise_answer)
 builder.add_node("flag_unsupported", flag_unsupported)
 builder.add_node("check_useful", check_useful)
 builder.add_node("rewrite_query", rewrite_query)
-builder.add_node("no_relevant_docs", no_relevant_docs)
+builder.add_node("suggest_contact", suggest_contact)
 builder.add_node("generate_direct", generate_direct)
 builder.add_edge(START, "decide_retrieval")
 builder.add_conditional_edges("decide_retrieval", route_after_decision)
@@ -433,7 +464,7 @@ builder.add_edge("revise_answer", "check_support")
 builder.add_conditional_edges("check_useful", route_after_useful)
 builder.add_edge("rewrite_query", "retrieve")  # loop back with the new search query
 builder.add_edge("flag_unsupported", END)
-builder.add_edge("no_relevant_docs", END)
+builder.add_edge("suggest_contact", END)
 builder.add_edge("generate_direct", END)
 app = builder.compile()
 
