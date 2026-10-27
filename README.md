@@ -51,19 +51,20 @@ flowchart TD
     R --> G{grade_documents<br/>LLM grades each chunk}
     G -->|some relevant| GEN[generate<br/>answer with doc_id citations]
     G -->|none relevant,<br/>rewrite left| RW[rewrite_query]
-    G -->|none relevant,<br/>no rewrite left| NR[no_relevant_docs<br/>'raise a ticket' message] --> E2([Answer])
+    G -->|none relevant,<br/>no rewrite left| SC[suggest_contact<br/>owner of the closest document] --> E2([Answer])
     GEN --> S{check_support<br/>is every claim in the chunks?}
     S -->|fully| U{check_useful<br/>does it answer the question?}
     S -->|partially / none,<br/>retry left| RV[revise_answer<br/>remove unsupported claims]
     RV --> S
     S -->|still unsupported,<br/>no retry left| F[flag_unsupported<br/>answer + warning list] --> E3([Answer])
-    U -->|useful, or<br/>no rewrite left| E4([Answer])
+    U -->|useful| E4([Answer])
+    U -->|not useful,<br/>no rewrite left| SC
     U -->|not useful,<br/>rewrite left| RW
     RW --> R
 ```
 
 Both loops are bounded: at most **1 revision** (`MAX_GENERATIONS = 2`) and **1 query rewrite** (`MAX_REWRITES = 1`).
-The longest possible path is 16 steps, well below LangGraph's default `recursion_limit` of 25.
+The longest possible path is 17 steps, well below LangGraph's default `recursion_limit` of 25.
 
 ### Step by step
 
@@ -77,6 +78,8 @@ The longest possible path is 16 steps, well below LangGraph's default `recursion
    or one for a different region is rejected. Only relevant chunks are kept in the state.
 4. **`generate`**: answers from the kept chunks only and cites every source like `[HR-LV-001]`. If the answer
    depends on something the user didn't say (location, level), it lists the options and asks.
+   It gives the direct answer first, then the conditions, exceptions and next steps the chunks state for it
+   (who must approve, deadlines, what is not allowed), so a "2 approvals" answer also says "including a CODEOWNER".
 5. **`check_support`** (Self-RAG *IsSup*): `SupportGrade(support = fully | partially | none, unsupported_claims)`.
    Numbers the user gave in the question (their salary, dates) count as supported, and so do direct
    calculations from them. "I don't know" and clarifying questions are not claims.
@@ -88,6 +91,10 @@ The longest possible path is 16 steps, well below LangGraph's default `recursion
 8. **`rewrite_query`**: turns the question into a policy-style search query ("entitlement", "notice period") and
    loops back to `retrieve`. The rewrite is used **only for searching**: grading and generation still use the
    user's original question.
+9. **`suggest_contact`**: the dead end, used when no chunk is relevant or the answer is still not useful after the
+   rewrite. The LLM picks the retrieved document closest to the question (`ContactChoice(doc_id)`), and the reply
+   points to that document's owner, e.g. "The closest policy is Employee Benefits and Insurance - India
+   [HR-BEN-001], owned by People Operations - Total Rewards: you can ask them at benefits@orbitra.io."
 
 ### Retrieval: hybrid search + reranking
 
@@ -125,6 +132,9 @@ question ─┬─> vector search (bge-small, Chroma)  top 12 ─┐
   wrong-region chunks.
 - **The rewriter must not copy the user's numbers.** An early version put the user's salary into the search query,
   which made retrieval worse. The prompt now says so explicitly.
+- **Contacts come from metadata, not from the LLM.** In `suggest_contact` the LLM only chooses a `doc_id` from
+  the retrieved documents; the team and email are read from that document's `department` and `owner` fields,
+  so the bot can't make up an email address.
 - **Everything except the LLM runs locally:** embeddings, the vector store, BM25 and the reranker. You only need
   one free API key.
 
@@ -329,6 +339,8 @@ SelfRAG/
 | 4 | `check_support` with a bounded revise loop (later moved into its own `revise_answer` node) |
 | 5 | `check_useful` and the `rewrite_query` loop |
 | + | Hybrid search (vector + BM25, RRF) with cross-encoder reranking |
+| + | More complete answers: the conditions, exceptions and next steps from the chunks |
+| + | `suggest_contact`: point to the owner of the closest document when nothing answers |
 
 ## Ideas for next steps
 
