@@ -47,7 +47,8 @@ company knowledge base. Internal policy questions shouldn't be answered from the
 flowchart TD
     Q([Question]) --> D{decide_retrieval<br/>needs the knowledge base?}
     D -->|no| GD[generate_direct<br/>short reply, no company facts] --> E1([Answer])
-    D -->|yes| R[retrieve<br/>hybrid search: vector + BM25<br/>RRF merge, cross-encoder rerank, top 4]
+    D -->|yes| P[plan_queries<br/>split into 1-3 sub-questions]
+    P --> R[retrieve<br/>hybrid search per sub-question: vector + BM25<br/>RRF merge, cross-encoder rerank]
     R --> G{grade_documents<br/>LLM grades each chunk}
     G -->|some relevant| GEN[generate<br/>answer with doc_id citations]
     G -->|none relevant,<br/>rewrite left| RW[rewrite_query]
@@ -64,34 +65,38 @@ flowchart TD
 ```
 
 Both loops are bounded: at most **1 revision** (`MAX_GENERATIONS = 2`) and **1 query rewrite** (`MAX_REWRITES = 1`).
-The longest possible path is 17 steps, well below LangGraph's default `recursion_limit` of 25.
+The longest possible path is 18 steps, well below LangGraph's default `recursion_limit` of 25.
 
 ### Step by step
 
 1. **`decide_retrieval`** (Self-RAG *Retrieve*): returns `RetrievalDecision(should_retrieve, reason)`. Anything about
    Orbitra, even if it sounds general ("how do I reset my password?"), is retrieved. Greetings and small talk go to
    **`generate_direct`**, which is told not to state any company facts.
-2. **`retrieve`**: hybrid search, explained in the next section. It returns the 4 best chunks. After a rewrite it searches
-   with `search_query` instead of the original question.
-3. **`grade_documents`** (Self-RAG *IsRel*): one `DocGrade(is_relevant, reason)` per chunk, sent in parallel with
+2. **`plan_queries`**: splits a multi-part question into 1-3 sub-questions (`QueryPlan(sub_questions)`), so
+   each fact gets its own search. "Can I deploy a feature on 9 November?" becomes "What are the deployment
+   windows and freeze periods?" + "Is 9 November 2026 a holiday?". Simple questions come back unchanged as one part.
+3. **`retrieve`**: hybrid search, explained below, once per sub-question: the 4 best chunks for a single question,
+   or 3 per part for several, with duplicates removed. After a rewrite it searches only with `search_query`.
+4. **`grade_documents`** (Self-RAG *IsRel*): one `DocGrade(is_relevant, reason)` per chunk, sent in parallel with
    `grader.batch`. The grader sees each chunk's `doc_id`, `title`, `status` and `applies_to`, so a `superseded` chunk
    or one for a different region is rejected. Only relevant chunks are kept in the state.
-4. **`generate`**: answers from the kept chunks only and cites every source like `[HR-LV-001]`. If the answer
+   The grader also sees the sub-questions, so a chunk that answers just one part (e.g. the holiday list) is kept.
+5. **`generate`**: answers from the kept chunks only and cites every source like `[HR-LV-001]`. If the answer
    depends on something the user didn't say (location, level), it lists the options and asks.
    It gives the direct answer first, then the conditions, exceptions and next steps the chunks state for it
    (who must approve, deadlines, what is not allowed), so a "2 approvals" answer also says "including a CODEOWNER".
-5. **`check_support`** (Self-RAG *IsSup*): `SupportGrade(support = fully | partially | none, unsupported_claims)`.
+6. **`check_support`** (Self-RAG *IsSup*): `SupportGrade(support = fully | partially | none, unsupported_claims)`.
    Numbers the user gave in the question (their salary, dates) count as supported, and so do direct
    calculations from them. "I don't know" and clarifying questions are not claims.
-6. **`revise_answer`**: if the support check fails, it **edits** the previous answer: removes or corrects only the
+7. **`revise_answer`**: if the support check fails, it **edits** the previous answer: removes or corrects only the
    listed claims and adds nothing new. Then the support check runs again. If it still fails,
    **`flag_unsupported`** returns the answer with a ⚠️ list of the parts that could not be verified.
-7. **`check_useful`** (Self-RAG *IsUse*): `UsefulnessGrade(is_useful, reason)`. It judges only whether the answer
+8. **`check_useful`** (Self-RAG *IsUse*): `UsefulnessGrade(is_useful, reason)`. It judges only whether the answer
    addresses the question, because correctness was already checked. A grounded "I don't know" fails this check.
-8. **`rewrite_query`**: turns the question into a policy-style search query ("entitlement", "notice period") and
+9. **`rewrite_query`**: turns the question into a policy-style search query ("entitlement", "notice period") and
    loops back to `retrieve`. The rewrite is used **only for searching**: grading and generation still use the
    user's original question.
-9. **`suggest_contact`**: the dead end, used when no chunk is relevant or the answer is still not useful after the
+10. **`suggest_contact`**: the dead end, used when no chunk is relevant or the answer is still not useful after the
    rewrite. The LLM picks the retrieved document closest to the question (`ContactChoice(doc_id)`), and the reply
    points to that document's owner, e.g. "The closest policy is Employee Benefits and Insurance - India
    [HR-BEN-001], owned by People Operations - Total Rewards: you can ask them at benefits@orbitra.io."
@@ -132,6 +137,11 @@ question ─┬─> vector search (bge-small, Chroma)  top 12 ─┐
   wrong-region chunks.
 - **The rewriter must not copy the user's numbers.** An early version put the user's salary into the search query,
   which made retrieval worse. The prompt now says so explicitly.
+- **The LLM decides when to split, before searching.** Simple rules (look for "and") miss hidden multi-part
+  questions: "Can I deploy on 9 November?" has no "and" but needs the freeze dates and the holiday list. And
+  waiting for a check to fail doesn't work either: with only the deployment rules retrieved, the answer "Yes,
+  it's a Monday" passed both the support and usefulness checks, because no check can see a document that was never
+  retrieved. So `plan_queries` asks the LLM up front, with examples of how this knowledge base splits its facts.
 - **Contacts come from metadata, not from the LLM.** In `suggest_contact` the LLM only chooses a `doc_id` from
   the retrieved documents; the team and email are read from that document's `department` and `owner` fields,
   so the bot can't make up an email address.
@@ -266,6 +276,8 @@ Every node prints what it did, so you can watch the self-reflection happen (outp
 You: How long is a comp-off valid?
 --- decide_retrieval ---
   retrieve=True  (...)
+--- plan_queries ---
+  🧩 parts: ['How long is a comp-off valid?']
 --- retrieve ---
   [HR-LV-001] status=active  '...'
   ...
@@ -293,6 +305,8 @@ All in `main.py` (and the matching notebook cells):
 |---|---|---|
 | `CANDIDATES` | 12 | chunks taken from each of vector and BM25 search, and kept after RRF for reranking |
 | `TOP_K` | 4 | chunks kept after reranking; each costs one grader LLM call |
+| `MAX_SUB_QUESTIONS` | 3 | most sub-questions `plan_queries` can make |
+| `TOP_K_PER_PART` | 3 | chunks per sub-question when a question is split |
 | `MAX_GENERATIONS` | 2 | first answer + 1 revision after a failed support check |
 | `MAX_REWRITES` | 1 | query rewrites (after no relevant chunks, or a not-useful answer) |
 | `chunk_size` / `chunk_overlap` | 1000 / 150 | text splitting; the vector store rebuilds itself when the chunk count changes |
@@ -341,10 +355,12 @@ SelfRAG/
 | + | Hybrid search (vector + BM25, RRF) with cross-encoder reranking |
 | + | More complete answers: the conditions, exceptions and next steps from the chunks |
 | + | `suggest_contact`: point to the owner of the closest document when nothing answers |
+| + | `plan_queries`: split multi-part questions into sub-questions, one search each |
 
 ## Ideas for next steps
 
-- **Query decomposition** for multi-hop questions: split the question, retrieve for each part.
+- **Follow the pointer**: when a kept chunk mentions another `doc_id` (e.g. "see COM-002"), fetch that
+  document too, for facts the planner can't foresee.
 - **Tools** from `data/`: employee lookup, leave balance, ticket creation, and a calculator for per-diem and
   notice-buyout maths.
 

@@ -2,7 +2,7 @@
 with query rewriting, over the Orbitra knowledge base.
 Retrieval is hybrid: vector + BM25 keyword search, merged with RRF, then reranked by a cross-encoder.
 
-Flow: question -> decide_retrieval -> (yes) retrieve -> grade_documents
+Flow: question -> decide_retrieval -> (yes) plan_queries -> retrieve -> grade_documents
                                    -> (no)  generate_direct -> answer
       grade_documents -> (some relevant) generate -> check_support
                       -> (none relevant, rewrite left) rewrite_query -> retrieve
@@ -132,11 +132,11 @@ def reciprocal_rank_fusion(*ranked_lists: list[Document], k: int = 60) -> list[D
     return [docs[key] for key in sorted(scores, key=scores.get, reverse=True)]
 
 
-def hybrid_search(query: str) -> list[Document]:
+def hybrid_search(query: str, top_k: int = TOP_K) -> list[Document]:
     candidates = reciprocal_rank_fusion(vector_retriever.invoke(query), bm25_retriever.invoke(query))[:CANDIDATES]
     scores = reranker.rerank(query, [d.page_content for d in candidates], batch_size=4)
     ranked = sorted(zip(scores, candidates), key=lambda pair: pair[0], reverse=True)
-    return [doc for _, doc in ranked[:TOP_K]]
+    return [doc for _, doc in ranked[:top_k]]
 
 # llm and prompt
 # max_retries: on a 429 (free tier is 8000 tokens/min) the client waits as Groq says, then retries
@@ -192,6 +192,33 @@ direct_prompt = ChatPromptTemplate.from_messages([
 ])
 
 
+# query planning: split a question into the separate facts it needs (one search each)
+class QueryPlan(BaseModel):
+    """The searches needed to answer the question."""
+    sub_questions: list[str] = Field(description="1 to 3 standalone search questions: just the original "
+        "question if one policy answers it; more only when the answer needs facts from different policies.")
+
+
+plan_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "You plan searches over Orbitra's internal knowledge base (HR, IT, security, finance, admin, legal, "
+     "engineering, product and sales policies). Most questions need one fact: return the question "
+     "unchanged as the only item. Split only when the answer needs facts that sit in different policies, "
+     "for example:\n"
+     "- whether something can happen on a date -> the rule for it (e.g. deployment windows and freezes) "
+     "and the holiday calendar\n"
+     "- an expense claim or purchase -> the spending limit and who approves it (the company approval matrix)\n"
+     "- when a bonus or reimbursement will be paid -> the rule for it and the payroll cut-off dates\n"
+     "- resigning or leaving -> the notice period and leave encashment\n"
+     "Keep the user's region and level in every sub-question; leave out their own amounts and calculations."),
+    ("human", "{question}"),
+])
+planner = plan_prompt | judge_llm.with_structured_output(QueryPlan)
+
+MAX_SUB_QUESTIONS = 3
+TOP_K_PER_PART = 3   # chunks per sub-question when there are several (one question keeps TOP_K = 4)
+
+
 # document grading (Self-RAG's "IsRel" step), one grade per retrieved chunk
 class DocGrade(BaseModel):
     """Relevance grade for one retrieved chunk."""
@@ -207,9 +234,10 @@ grade_prompt = ChatPromptTemplate.from_messages([
      "Use the chunk's metadata: a chunk with status 'superseded' is never relevant, because a newer "
      "version exists. A chunk whose applies_to clearly excludes the region or group the question is "
      "about is not relevant. If the question names no region, any region can be relevant. Otherwise "
-     "be lenient: the chunk only needs to contain part of the answer."),
+     "be lenient: the chunk only needs to contain part of the answer. If the question has several "
+     "parts, a chunk that answers any one part is relevant."),
     ("human",
-     "Question: {question}\n\nChunk metadata: doc_id={doc_id}, title={title}, status={status}, "
+     "Question: {question}\nParts of the question: {parts}\n\nChunk metadata: doc_id={doc_id}, title={title}, status={status}, "
      "applies_to={applies_to}\n\nChunk:\n{chunk}"),
 ])
 grader = grade_prompt | judge_llm.with_structured_output(DocGrade)
@@ -311,7 +339,8 @@ class GraphState(TypedDict):
     generation_attempts: int
     support: str
     unsupported_claims: list[str]
-    search_query: str  # what retrieve searches for; the original question until a rewrite
+    sub_questions: list[str]  # from plan_queries: one search per part
+    search_query: str  # set by a rewrite; retrieve then searches only this
     rewrite_count: int
     is_useful: bool
     usefulness_reason: str
@@ -323,19 +352,33 @@ def decide_retrieval(state: GraphState) -> dict:
 
 
 # router, not a node: only reads the state and names the next node
-def route_after_decision(state: GraphState) -> Literal["retrieve", "generate_direct"]:
-    return "retrieve" if state["should_retrieve"] else "generate_direct"
+def route_after_decision(state: GraphState) -> Literal["plan_queries", "generate_direct"]:
+    return "plan_queries" if state["should_retrieve"] else "generate_direct"
+
+
+def plan_queries(state: GraphState) -> dict:
+    plan = planner.invoke({"question": state["question"]})
+    return {"sub_questions": plan.sub_questions[:MAX_SUB_QUESTIONS] or [state["question"]]}
 
 
 def retrieve(state: GraphState) -> dict:
-    docs = hybrid_search(state.get("search_query") or state["question"])
+    # after a rewrite: one new query; otherwise one search per sub-question
+    queries = [state["search_query"]] if state.get("search_query") else state["sub_questions"]
+    k = TOP_K if len(queries) == 1 else TOP_K_PER_PART
+    docs, seen = [], set()
+    for query in queries:
+        for d in hybrid_search(query, k):
+            key = (d.metadata["source"], d.page_content)   # the same chunk can come back for two parts
+            if key not in seen:
+                seen.add(key)
+                docs.append(d)
     return {"documents": docs}
 
 
 def grade_documents(state: GraphState) -> dict:
     docs = state["documents"]
     grades = grader.batch([
-        {"question": state["question"], "chunk": d.page_content,
+        {"question": state["question"], "parts": "; ".join(state["sub_questions"]), "chunk": d.page_content,
          **{k: d.metadata.get(k, "?") for k in ("doc_id", "title", "status", "applies_to")}}
         for d in docs
     ])  # one LLM call per chunk, sent in parallel
@@ -444,6 +487,7 @@ def generate_direct(state: GraphState) -> dict:
 
 builder = StateGraph(GraphState)
 builder.add_node("decide_retrieval", decide_retrieval)
+builder.add_node("plan_queries", plan_queries)
 builder.add_node("retrieve", retrieve)
 builder.add_node("grade_documents", grade_documents)
 builder.add_node("generate", generate)
@@ -456,6 +500,7 @@ builder.add_node("suggest_contact", suggest_contact)
 builder.add_node("generate_direct", generate_direct)
 builder.add_edge(START, "decide_retrieval")
 builder.add_conditional_edges("decide_retrieval", route_after_decision)
+builder.add_edge("plan_queries", "retrieve")
 builder.add_edge("retrieve", "grade_documents")
 builder.add_conditional_edges("grade_documents", route_after_grading)
 builder.add_edge("generate", "check_support")
@@ -475,6 +520,8 @@ def ask(question: str):
             print(f"--- {node} ---")
             if node == "decide_retrieval":
                 print(f"  retrieve={update['should_retrieve']}  ({update['retrieval_reason']})")
+            elif node == "plan_queries":
+                print(f"  🧩 parts: {update['sub_questions']}")
             elif node == "retrieve":
                 for d in update["documents"]:
                     print(f"  [{d.metadata.get('doc_id')}] status={d.metadata.get('status')}  "
