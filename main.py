@@ -147,7 +147,10 @@ judge_llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0, max_retries=6, 
 prompt = ChatPromptTemplate.from_messages([
     ("system",
      "You are OrbitBot, an internal assistant for Orbitra Technologies employees. "
-     "Answer the question using only the context below. If the context does not "
+     "Answer the question using only the context below. Give the direct answer first, "
+     "then the conditions, exceptions and next steps the context gives for it (e.g. who "
+     "must approve, deadlines, what is not allowed, what to do if it doesn't work), one "
+     "short line each; leave out details about other topics. If the context does not "
      "contain the answer, say you don't know. If the answer depends on details the "
      "user did not give (location, level, etc.), list the options from the context "
      "and ask which applies. Cite the doc_id of every source you use, like "
