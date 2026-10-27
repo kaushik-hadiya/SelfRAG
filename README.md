@@ -359,10 +359,12 @@ SelfRAG/
 
 ## Ideas for next steps
 
-- **Follow the pointer**: when a kept chunk mentions another `doc_id` (e.g. "see COM-002"), fetch that
-  document too, for facts the planner can't foresee.
-- **Tools** from `data/`: employee lookup, leave balance, ticket creation, and a calculator for per-diem and
-  notice-buyout maths.
+- ~~Follow the pointer~~ (tried, not added): 34% of chunks mention another document, but in a check over all
+  50 questions only 2 of 64 followed pointers led to a missing document; most are "see also" links, and even
+  scoring the pointer's line against the question couldn't tell the useful ones apart.
+- **Tools** from `data/` (employee lookup, leave balance, ticket creation, a calculator) belong in an
+  **Agentic RAG** project rather than here: they turn the bot into an agent that takes actions, which is a
+  different pattern from Self-RAG's retrieve-and-check loop. Until then, `suggest_contact` points to the right team.
 
 ## Tech stack
 
