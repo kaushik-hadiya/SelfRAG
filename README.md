@@ -30,6 +30,8 @@ It never asks whether any step worked. On a realistic company knowledge base tha
 | Outdated or wrong-region chunks get used | The archived leave policy v4 says comp-off expires in **30** days; the active v5 says **60** | **`grade_documents`** (IsRel): an LLM grades each chunk using its `status` and `applies_to` metadata |
 | The LLM adds facts that are not in the context | An invented approval step or a wrong number | **`check_support`** (IsSup): every claim is checked against the chunks; **`revise_answer`** removes the unsupported ones |
 | The search missed, so the answer is "I don't know" | The right chunk ranked #6 when only the top 4 are used | **`check_useful`** (IsUse) + **`rewrite_query`**: search again with better words |
+| A question needs facts from two documents | "Can I deploy on 9 Nov?" needs the freeze dates **and** the holiday list | **`plan_queries`**: one search per part |
+| Nothing answers, and the bot just says "don't know" | "Does Orbitra provide pet insurance?" | **`suggest_contact`**: points to the owner of the closest document |
 
 **Self-RAG vs CRAG:** CRAG (my earlier project) adds one correction step between retrieval and generation and falls
 back to web search. Self-RAG reflects at several points, *including after the answer is written*, and stays inside the
@@ -101,6 +103,55 @@ The longest possible path is 18 steps, well below LangGraph's default `recursion
    points to that document's owner, e.g. "The closest policy is Employee Benefits and Insurance - India
    [HR-BEN-001], owned by People Operations - Total Rewards: you can ask them at benefits@orbitra.io."
 
+### Example: one multi-part question, end to end
+
+A real run of "Can I deploy a non-urgent feature to production on 9 November 2026?":
+
+1. `decide_retrieval`: it's about Orbitra's rules, so retrieve.
+2. `plan_queries` makes 2 parts: *"What are the deployment windows and freeze periods for non-urgent features in
+   production?"* and *"Is 9 November 2026 a holiday according to the company holiday calendar?"*
+3. `retrieve` runs one hybrid search per part (3 chunks each): 6 chunks.
+4. `grade_documents` keeps 3 of them: the deployment rules (ENG-003), the Diwali-freeze announcement (COM-004) and
+   the holiday calendar (HR-HOL-2026). A glossary chunk, a support-SLA chunk and a second holiday chunk are rejected.
+5. `generate` combines them: *"No - a production deploy on 9 Nov 2026 isn't allowed without an approved exception"*,
+   because 9 November is a holiday in Bengaluru and Pune, when production deploys aren't allowed [HR-HOL-2026],
+   and 6-10 November is a deployment freeze [COM-004]; the normal deployment windows [ENG-003] don't apply.
+6. `check_support`: fully supported. `check_useful`: useful. Done: 11 LLM calls, about 8,900 tokens.
+
+Without step 2, a single search found only the deployment rules, and the bot answered "Yes, it's a Monday".
+
+### What the graph passes between nodes (the state)
+
+Nodes don't call each other; each one reads fields from a shared state (`GraphState`) and returns the fields it
+changes. There are no reducers, so a returned field replaces the old value: that is how `grade_documents` swaps the
+retrieved chunks for only the relevant ones.
+
+| State field | Written by | Read by |
+|---|---|---|
+| `question` | the caller (the user's question) | almost every node |
+| `should_retrieve`, `retrieval_reason` | `decide_retrieval` | `route_after_decision` |
+| `sub_questions` | `plan_queries` | `retrieve`, `grade_documents` |
+| `documents` | `retrieve` (all found), then `grade_documents` (only relevant) | `generate`, `revise_answer`, `check_support`, `suggest_contact` |
+| `doc_grades` | `grade_documents` (with each chunk's title, department, owner) | `suggest_contact` |
+| `answer` | `generate`, `revise_answer`, `flag_unsupported`, `suggest_contact`, `generate_direct` | `check_support`, `check_useful`, `revise_answer` |
+| `generation_attempts` | `generate` (sets 1), `revise_answer` (+1) | `route_after_support` |
+| `support`, `unsupported_claims` | `check_support` | `route_after_support`, `revise_answer`, `flag_unsupported` |
+| `is_useful`, `usefulness_reason` | `check_useful` | `route_after_useful` |
+| `search_query`, `rewrite_count` | `rewrite_query` | `retrieve`, `rewrite_query`, the routers |
+
+### How many LLM calls a question costs
+
+| Path | LLM calls |
+|---|---|
+| Small talk ("hi") | 2: decide + direct reply |
+| Normal question | 9: decide, plan, 4 chunk grades, generate, support check, usefulness check |
+| Split into 2 parts | 11: 6 chunk grades instead of 4 |
+| A revision after a failed support check | +2: revise + support check again |
+| A query rewrite | +8: rewrite, 4 chunk grades, generate, support check, usefulness check |
+| Ending in `suggest_contact` | +1: picking the closest document |
+
+Everything else (embeddings, BM25, reranking, routing) runs locally and costs no tokens.
+
 ### Retrieval: hybrid search + reranking
 
 Embedding search can miss exact terms such as policy names and abbreviations ("comp-off", "per diem"), so
@@ -112,6 +163,10 @@ question ─┬─> vector search (bge-small, Chroma)  top 12 ─┐
                                                                ─> cross-encoder rerank ─> top 4
 ```
 
+- **Vector search** finds chunks by **meaning**: the embedding model (`bge-small`) turns each chunk into a list of
+  384 numbers once, when the vector store is built, and turns the question into the same kind of list at search
+  time; the closest chunks win. It matches "quit my job" to "resignation" without shared words, but each chunk is
+  one averaged vector, so a single rare word in a big table (like "comp-off") can get lost.
 - **BM25** scores chunks by the exact words they share with the question, so rare words like "comp-off" or
   "buyout" score high. Text is lowercased and split on `\w+`.
 - **Reciprocal Rank Fusion (RRF)** merges the two rankings. A chunk gets `1 / (60 + rank)` from every list it
@@ -119,6 +174,9 @@ question ─┬─> vector search (bge-small, Chroma)  top 12 ─┐
   written by hand in `reciprocal_rank_fusion()`.
 - **Cross-encoder reranker** (`jinaai/jina-reranker-v1-turbo-en`, local ONNX): reads the question and each chunk
   *together*. That judges relevance much better than comparing two separate embeddings. About 1 second for 12 chunks on a CPU.
+  The difference in one line: vector search turns the question and the chunk into vectors **separately** (fast,
+  chunk vectors computed in advance); the reranker **reads them together** (precise, but one model run per chunk),
+  so it only runs on the 12 candidates.
 
 ### Design choices worth knowing
 
@@ -127,7 +185,7 @@ question ─┬─> vector search (bge-small, Chroma)  top 12 ─┐
   - the yes/no judges (decider, grader, support, usefulness, rewriter) use a separate `judge_llm` with
     `reasoning_effort="low"`, which means fewer reasoning tokens;
   - both clients use `max_retries=6`, so a per-minute `429` waits and retries instead of crashing;
-  - only 4 chunks reach the LLM grader, because reranking is local and free.
+  - only the top 4 chunks (or 3 per sub-question) reach the LLM grader, because reranking is local and free.
 - **`llm.bind(reasoning_effort=...)` doesn't work with structured output.** `with_structured_output` silently drops
   bound arguments (measured: the same reasoning-token count with and without it). Setting it on a second `ChatGroq` instance works.
 - **Separate nodes for separate jobs.** Revising an unsupported answer is its own node (`revise_answer`), not a hidden
@@ -159,7 +217,9 @@ question ─┬─> vector search (bge-small, Chroma)  top 12 ─┐
 - **Built-in traps:** a superseded leave policy (`01_hr/archive/…v4_SUPERSEDED.md`), region-specific rules
   (India / US / UK), similar-but-different facts (internal IT P1 SLA 15 min vs customer P1 30 min), multi-hop questions,
   calculations, and unanswerable questions.
-- `data/`: an employee directory and ticket history CSVs. They are not used yet; they're for future tool-calling stages.
+- `data/`: an employee directory and ticket history CSVs. They are not used here; they're meant for an Agentic RAG
+  version with tools.
+- `eval/eval_questions.jsonl`: 50 graded test questions, used by `eval/run_eval.py`.
 
 See [`KB_README.md`](KB_README.md) for the full description and document index.
 
@@ -332,8 +392,11 @@ All in `main.py` (and the matching notebook cells):
 SelfRAG/
 ├── main.py               # the full Self-RAG graph + command-line chat loop
 ├── main.ipynb            # same code as notebook sections, with the graph diagram and examples
+├── eval/
+│   ├── eval_questions.jsonl  # 50 graded test questions (reference answers + gold documents)
+│   └── run_eval.py           # resumable eval: runs the graph, LLM-judges each answer
 ├── documents/            # synthetic Orbitra knowledge base (46 Markdown docs)
-├── data/                 # employee directory + ticket history CSVs (for future tool stages)
+├── data/                 # employee directory + ticket history CSVs (meant for an Agentic RAG version)
 ├── KB_README.md          # description of the knowledge base and its built-in challenges
 ├── pyproject.toml        # dependencies
 ├── uv.lock               # exact pinned versions
