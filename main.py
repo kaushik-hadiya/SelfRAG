@@ -21,6 +21,7 @@ from typing import Literal, TypedDict
 import yaml
 from dotenv import load_dotenv
 from fastembed.rerank.cross_encoder import TextCrossEncoder
+from groq import BadRequestError
 from langchain_chroma import Chroma
 from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_community.retrievers import BM25Retriever
@@ -144,6 +145,9 @@ llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0, max_retries=6)
 # yes/no judgments don't need deep thinking; fewer reasoning tokens = fewer rate-limit hits.
 # set on the model itself: llm.bind(reasoning_effort=...) is dropped by with_structured_output
 judge_llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0, max_retries=6, reasoning_effort="low")
+# the judge sometimes returns a value outside the schema (e.g. "partial" instead of "partially");
+# Groq rejects that with a 400 and max_retries doesn't retry it, so ask again up to 3 times
+RETRY_BAD_OUTPUT = dict(retry_if_exception_type=(BadRequestError,), stop_after_attempt=3)
 
 prompt = ChatPromptTemplate.from_messages([
     ("system",
@@ -181,7 +185,7 @@ decide_prompt = ChatPromptTemplate.from_messages([
      "for greetings, thanks, small talk, or general knowledge unrelated to Orbitra. When unsure, retrieve."),
     ("human", "{question}"),
 ])
-decider = decide_prompt | judge_llm.with_structured_output(RetrievalDecision)
+decider = decide_prompt | judge_llm.with_structured_output(RetrievalDecision).with_retry(**RETRY_BAD_OUTPUT)
 
 direct_prompt = ChatPromptTemplate.from_messages([
     ("system",
@@ -213,7 +217,7 @@ plan_prompt = ChatPromptTemplate.from_messages([
      "Keep the user's region and level in every sub-question; leave out their own amounts and calculations."),
     ("human", "{question}"),
 ])
-planner = plan_prompt | judge_llm.with_structured_output(QueryPlan)
+planner = plan_prompt | judge_llm.with_structured_output(QueryPlan).with_retry(**RETRY_BAD_OUTPUT)
 
 MAX_SUB_QUESTIONS = 3
 TOP_K_PER_PART = 3   # chunks per sub-question when there are several (one question keeps TOP_K = 4)
@@ -240,7 +244,7 @@ grade_prompt = ChatPromptTemplate.from_messages([
      "Question: {question}\nParts of the question: {parts}\n\nChunk metadata: doc_id={doc_id}, title={title}, status={status}, "
      "applies_to={applies_to}\n\nChunk:\n{chunk}"),
 ])
-grader = grade_prompt | judge_llm.with_structured_output(DocGrade)
+grader = grade_prompt | judge_llm.with_structured_output(DocGrade).with_retry(**RETRY_BAD_OUTPUT)
 
 
 # support check (Self-RAG's "IsSup" step): is the answer grounded in the chunks?
@@ -263,7 +267,7 @@ support_prompt = ChatPromptTemplate.from_messages([
      "steps not found in the chunks or the question, is unsupported.\n\nChunks:\n{context}"),
     ("human", "Question: {question}\n\nAnswer to check:\n{answer}"),
 ])
-support_checker = support_prompt | judge_llm.with_structured_output(SupportGrade)
+support_checker = support_prompt | judge_llm.with_structured_output(SupportGrade).with_retry(**RETRY_BAD_OUTPUT)
 
 # used when the support check fails: edit the previous answer instead of starting over
 revise_prompt = ChatPromptTemplate.from_messages([
@@ -293,7 +297,7 @@ useful_prompt = ChatPromptTemplate.from_messages([
      "whether it addresses what was asked, not whether it is correct; correctness was already checked."),
     ("human", "Question: {question}\n\nAnswer:\n{answer}"),
 ])
-usefulness_checker = useful_prompt | judge_llm.with_structured_output(UsefulnessGrade)
+usefulness_checker = useful_prompt | judge_llm.with_structured_output(UsefulnessGrade).with_retry(**RETRY_BAD_OUTPUT)
 
 # query rewriting: a new search query for retrieve only; grading and generation keep the original question
 rewrite_prompt = ChatPromptTemplate.from_messages([
@@ -325,7 +329,7 @@ contact_prompt = ChatPromptTemplate.from_messages([
      "question (same topic, e.g. benefits, leave, IT access). Pick None if none is about the same topic."),
     ("human", "Question: {question}\n\nRetrieved documents:\n{documents}"),
 ])
-contact_picker = contact_prompt | judge_llm.with_structured_output(ContactChoice)
+contact_picker = contact_prompt | judge_llm.with_structured_output(ContactChoice).with_retry(**RETRY_BAD_OUTPUT)
 
 
 # the graph(state,nodes,edges)
